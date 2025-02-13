@@ -59,15 +59,11 @@ if uploaded_file is not None:
         # Load data
         df = pd.read_csv(uploaded_file)
 
-                # Debug prints
-        st.write("Columns:", df.columns.tolist())
-        st.write("Data types:", df.dtypes.to_dict())
 
 
 
-       # Convert numeric columns to float
-        numeric_columns = ['Fund AUM', 'Market Cap ($B) 2024', '1YR', '3YR', '5YR', 'SI', 'Market Cap ($B) 2023', 
-                           'Market Cap ($B) 2022', 'Market Cap ($B) 2021', 'Market Cap ($B) 2020', 'Market Cap ($B) 2019', 'Market Cap ($B) 2018']
+         # Convert numeric columns
+        numeric_columns = ['1YR', '3YR', '5YR', 'SI', 'Fund AUM', 'Market Cap ($B) 2024']
         for col in numeric_columns:
             if col == 'Fund AUM':
                 # Remove $ and commas, and any trailing spaces

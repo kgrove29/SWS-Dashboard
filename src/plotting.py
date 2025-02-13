@@ -359,21 +359,25 @@ def create_market_cap_bubble(df):
 
 def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     """Create animated market cap distribution chart using Plotly."""
-        # Debug prints
-    print("Columns in dataframe:", df.columns)
-    print("Data types of columns:", df.dtypes)
-    # Convert column names to strings and extract years
     years = []
-    for col in [str(col) for col in df.columns]:  # Explicitly convert each column name to string
-        if 'Market Cap ($B)' in col:
-            try:
-                year = int(col.split()[-1])
-                years.append(year)
-                #ensure the column data is numeric
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-            except ValueError:
-                continue    
-   
+    # First ensure all market cap columns are numeric
+    market_cap_cols = [col for col in df.columns if 'Market Cap ($B)' in str(col)]
+    for col in market_cap_cols:
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce')
+        
+        try:
+            year = int(str(col).split()[-1])
+            years.append(year)
+        except ValueError:
+            continue    
+
+    # Ensure Fund AUM is numeric
+    if not pd.api.types.is_numeric_dtype(df['Fund AUM']):
+        df['Fund AUM'] = pd.to_numeric(
+            df['Fund AUM'].astype(str).str.replace('$', '').str.replace(',', ''), 
+            errors='coerce'
+        )
     # Ensure we have years to process
     if not years:
         st.error("No market cap columns found in the data. Expected format: 'Market Cap ($B) yyyy'")
