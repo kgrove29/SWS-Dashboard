@@ -14,9 +14,6 @@ def create_box_whisker_plot(df):
     periods = ['1YR', '3YR', '5YR', 'SI']
     target_fund = 'SWS Growth Equity'
 
-    # Debug print to check if the fund exists in the dataset
-    print("available funds:", df['Fund'].unique())
-    print("target fund:", target_fund in df['Fund'].values)
     
     fig = go.Figure()
     
@@ -267,12 +264,12 @@ def create_market_cap_bubble(df):
     # Add bar chart for AUM
     fig.add_trace(go.Bar(
         x=grouped['Market Cap Bucket'],
-        y=grouped['Total AUM'] / 1000,  # Convert to trillions
+        y=grouped['Total AUM'] / 1000000,  # Convert to billions
         name='Total AUM',
         marker_color='lightblue',
         opacity=0.7,
         hovertemplate="<b>%{x}</b><br>" +
-                      "Total AUM: $%{y:,.1f}T<br>" +
+                      "Total AUM: $%{y:,.0f}B<br>" +
                       "Fund Count: %{customdata}<br>" +
                       "<extra></extra>",
         customdata=grouped['Fund Count']
@@ -295,7 +292,7 @@ def create_market_cap_bubble(df):
             name=target_fund,
             marker=dict(
                 color='red',
-                size=10,
+                size=6,
                 symbol='diamond'
             ),
             showlegend=True
@@ -305,7 +302,7 @@ def create_market_cap_bubble(df):
         fig.add_annotation(
             x=target_bucket,
             y=marker_height,
-            text=f"<b>SWS Growth Equity</b><br>Market Cap: ${target_market_cap:.1f}B",
+            text=f"<b>SWS Growth Equity</b><br>Wtd. Avg. Market Cap: ${target_market_cap:.1f}B",
             yshift=40,
             showarrow=True,
             arrowhead=2,
@@ -334,8 +331,8 @@ def create_market_cap_bubble(df):
         },
         xaxis_title="Weighted Average Market Cap",
         yaxis=dict(
-            title="Total AUM ($T)",
-            tickformat=",.1f",
+            title="Total AUM ($B)",
+            tickformat=",.0f",
             gridcolor='lightgrey',
             zerolinecolor='lightgrey',
             zeroline=True
