@@ -364,7 +364,7 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     print("Data types of columns:", df.dtypes)
     # Convert column names to strings and extract years
     years = []
-    for col in df.columns.astype(str):
+    for col in [str(col) for col in df.columns]:  # Explicitly convert each column name to string
         if 'Market Cap ($B)' in col:
             try:
                 year = int(col.split()[-1])
@@ -373,6 +373,7 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
             except ValueError:
                 continue    
+   
     # Ensure we have years to process
     if not years:
         st.error("No market cap columns found in the data. Expected format: 'Market Cap ($B) yyyy'")
