@@ -79,8 +79,6 @@ if uploaded_file is not None:
                 df[col] = df[col] / 100
 
 
-        st.write('selected category:', category)
-        st.write('before filtering shape:', df.shape)
 
         #Apply filters
         if category == 'All':
@@ -101,10 +99,6 @@ if uploaded_file is not None:
         
         if market_cap_filter < 2000:
             df = df[df['Market Cap ($B)'] < market_cap_filter]
-
-        st.write('after filtering shape:', df.shape)
-        st.write('remaining categories:', df['Morningstar Category'].unique())
-
 
         
         # Create tabs for different visualizations
