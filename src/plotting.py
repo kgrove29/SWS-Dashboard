@@ -359,7 +359,9 @@ def create_market_cap_bubble(df):
 
 def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     """Create animated market cap distribution chart using Plotly."""
+    # Convert column names to strings and extract years
     years = []
+    
     # First ensure all market cap columns are numeric
     market_cap_cols = [col for col in df.columns if 'Market Cap ($B)' in str(col)]
     for col in market_cap_cols:
@@ -378,12 +380,14 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
             df['Fund AUM'].astype(str).str.replace('$', '').str.replace(',', ''), 
             errors='coerce'
         )
+
     # Ensure we have years to process
     if not years:
         st.error("No market cap columns found in the data. Expected format: 'Market Cap ($B) yyyy'")
         raise ValueError("No market cap columns found in the data")
     
-    print('Found years:', years)
+    # Sort years in ascending order
+    years.sort()
     
     # Create market cap buckets
     market_cap_bins = [0, 250, 500, 1000, float('inf')]
@@ -410,23 +414,58 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
         
         year_grouped = year_grouped.fillna(0).reset_index()
         
+        # Get SWS Growth Equity data for this year
+        target_data = df[df['Fund'] == target_fund]
+        if not target_data.empty:
+            target_market_cap = target_data[cap_col].iloc[0]
+            target_bucket = pd.cut([target_market_cap], bins=market_cap_bins, labels=market_cap_labels)[0]
+            bucket_index = market_cap_labels.index(target_bucket)
+            
+            frame_data = [
+                # Bar chart
+                go.Bar(
+                    x=list(range(len(market_cap_labels))),
+                    y=year_grouped[('Fund AUM', 'sum')],
+                    text=[f'n={int(x)}<br><b>${y/1e9:,.0f}B</b>' 
+                          for x, y in zip(year_grouped[('Fund AUM', 'count')], 
+                                        year_grouped[('Fund AUM', 'sum')])],
+                    textposition='auto',
+                    marker_color='rgb(100, 149, 237)',
+                    width=0.8
+                ),
+                # SWS marker
+                go.Scatter(
+                    x=[bucket_index],
+                    y=[year_grouped.loc[bucket_index, ('Fund AUM', 'sum')] * 0.2],  # Position at 20% of bar height
+                    mode='markers',
+                    marker=dict(color='red', size=10, symbol='diamond'),
+                    name=target_fund,
+                    showlegend=False
+                )
+            ]
+        else:
+            frame_data = [
+                go.Bar(
+                    x=list(range(len(market_cap_labels))),
+                    y=year_grouped[('Fund AUM', 'sum')],
+                    text=[f'n={int(x)}<br><b>${y/1e9:,.0f}B</b>' 
+                          for x, y in zip(year_grouped[('Fund AUM', 'count')], 
+                                        year_grouped[('Fund AUM', 'sum')])],
+                    textposition='auto',
+                    marker_color='rgb(100, 149, 237)',
+                    width=0.8
+                )
+            ]
+        
         frame = go.Frame(
-            data=[go.Bar(
-                x=list(range(len(market_cap_labels))),
-                y=year_grouped[('Fund AUM', 'sum')],
-                text=[f'n={int(x)}<br><b>${y/1e9:,.0f}B</b>' 
-                      for x, y in zip(year_grouped[('Fund AUM', 'count')], 
-                                    year_grouped[('Fund AUM', 'sum')])],
-                textposition='auto',
-                marker_color='rgb(100, 149, 237)',
-                width=0.8
-            )],
+            data=frame_data,
             name=str(year)
         )
         frames.append(frame)
     
     # Add first frame to figure
-    fig.add_trace(frames[0].data[0])
+    for trace in frames[0].data:
+        fig.add_trace(trace)
     
     # Update layout
     fig.update_layout(
@@ -456,7 +495,10 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
             'currentvalue': {'prefix': 'Year: '},
             'steps': [{'args': [[str(year)]], 
                       'label': str(year),
-                      'method': 'animate'} for year in years]
+                      'method': 'animate'} for year in years],
+            'transition': {'duration': 300},
+            'x': 0.1,
+            'len': 0.9
         }]
     )
     
