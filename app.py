@@ -59,6 +59,10 @@ if uploaded_file is not None:
         # Load data
         df = pd.read_csv(uploaded_file)
 
+                # Debug prints
+        st.write("Columns:", df.columns.tolist())
+        st.write("Data types:", df.dtypes.to_dict())
+
 
 
        # Convert numeric columns to float
