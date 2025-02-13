@@ -9,7 +9,8 @@ import streamlit as st
 import pandas as pd
 from src.plotting import (create_box_whisker_plot, 
                          create_risk_return_scatter, 
-                         create_market_cap_bubble,create_market_cap_animation)
+                         create_market_cap_bubble,
+                         create_market_cap_animation)
 
 st.set_page_config(page_title="SWS Peer Analysis", layout="wide")
 
@@ -62,7 +63,8 @@ if uploaded_file is not None:
 
 
        # Convert numeric columns to float
-        numeric_columns = ['Fund AUM', 'Market Cap ($B)', '1YR', '3YR', '5YR', 'SI']
+        numeric_columns = ['Fund AUM', 'Market Cap ($B) 2024', '1YR', '3YR', '5YR', 'SI', 'Market Cap ($B) 2023', 
+                           'Market Cap ($B) 2022', 'Market Cap ($B) 2021', 'Market Cap ($B) 2020', 'Market Cap ($B) 2019', 'Market Cap ($B) 2018']
         for col in numeric_columns:
             if col == 'Fund AUM':
                 # Remove $ and commas, and any trailing spaces
@@ -98,7 +100,7 @@ if uploaded_file is not None:
             df = df[df['Total Holdings'] < holdings_filter]
         
         if market_cap_filter < 2000:
-            df = df[df['Market Cap ($B)'] < market_cap_filter]
+            df = df[df['Market Cap ($B) 2024'] < market_cap_filter]
 
         
         # Create tabs for different visualizations
