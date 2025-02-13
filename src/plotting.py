@@ -387,7 +387,7 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
         raise ValueError("No market cap columns found in the data")
     
     # Sort years in ascending order
-    years.sort()
+    years.sort(reverse=True)
     
     # Create market cap buckets
     market_cap_bins = [0, 250, 500, 1000, float('inf')]
