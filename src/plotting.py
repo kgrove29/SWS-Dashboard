@@ -359,6 +359,9 @@ def create_market_cap_bubble(df):
 
 def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     """Create animated market cap distribution chart using Plotly."""
+        # Debug prints
+    print("Columns in dataframe:", df.columns)
+    print("Data types of columns:", df.dtypes)
     # Convert column names to strings and extract years
     years = []
     for col in df.columns.astype(str):
