@@ -422,7 +422,6 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
             bucket_index = market_cap_labels.index(target_bucket)
             
             frame_data = [
-                # Bar chart
                 go.Bar(
                     x=list(range(len(market_cap_labels))),
                     y=year_grouped[('Fund AUM', 'sum')],
@@ -432,20 +431,37 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
                     textposition='auto',
                     marker_color='rgb(100, 149, 237)',
                     width=0.8
-                ),
-                # SWS marker
-                go.Scatter(
-                    x=[bucket_index],
-                    y=[year_grouped.loc[bucket_index, ('Fund AUM', 'sum')] * 0.2],  # Position at 20% of bar height
-                    mode='markers',
-                    marker=dict(color='red', size=10, symbol='diamond'),
-                    name=target_fund,
-                    showlegend=False
                 )
             ]
+            
+            # Add annotation for SWS Growth Equity
+            frame = go.Frame(
+                data=frame_data,
+                name=str(year),
+                layout=go.Layout(
+                    annotations=[
+                        dict(
+                            x=bucket_index,
+                            y=year_grouped.loc[bucket_index, ('Fund AUM', 'sum')] * 0.2,
+                            text=f"<b>SWS Growth Equity</b><br>Market Cap: ${target_market_cap:.1f}B",
+                            yshift=40,
+                            showarrow=True,
+                            arrowhead=2,
+                            arrowsize=1,
+                            arrowwidth=2,
+                            arrowcolor='black',
+                            bgcolor='black',
+                            bordercolor='black',
+                            borderwidth=2,
+                            borderpad=4,
+                            font=dict(color='white', size=10)
+                        )
+                    ]
+                )
+            )
         else:
-            frame_data = [
-                go.Bar(
+            frame = go.Frame(
+                data=[go.Bar(
                     x=list(range(len(market_cap_labels))),
                     y=year_grouped[('Fund AUM', 'sum')],
                     text=[f'n={int(x)}<br><b>${y/1e9:,.0f}B</b>' 
@@ -454,13 +470,10 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
                     textposition='auto',
                     marker_color='rgb(100, 149, 237)',
                     width=0.8
-                )
-            ]
+                )],
+                name=str(year)
+            )
         
-        frame = go.Frame(
-            data=frame_data,
-            name=str(year)
-        )
         frames.append(frame)
     
     # Add first frame to figure
