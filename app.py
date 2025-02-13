@@ -10,7 +10,7 @@ import pandas as pd
 from src.plotting import (create_box_whisker_plot, 
                          create_risk_return_scatter, 
                          create_market_cap_bubble,
-                         create_market_cap_animation)
+                         animate_market_cap_distribution)
 
 st.set_page_config(page_title="SWS Peer Analysis", layout="wide")
 
@@ -135,7 +135,7 @@ if uploaded_file is not None:
         # Market Cap Animation Tab
         with tab4:
             st.plotly_chart(
-                create_market_cap_animation(df),
+                animate_market_cap_distribution(df),
                 use_container_width=True
             )
     except Exception as e:
