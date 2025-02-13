@@ -59,9 +59,7 @@ if uploaded_file is not None:
         # Load data
         df = pd.read_csv(uploaded_file)
 
-        #after loading the data, add debug print
-        st.write("available categories in data:")
-        st.write(df['Morningstar Category'].unique())
+
 
        # Convert numeric columns to float
         numeric_columns = ['Fund AUM', 'Market Cap ($B)', '1YR', '3YR', '5YR', 'SI']
@@ -93,10 +91,7 @@ if uploaded_file is not None:
         elif category in ['Large Growth', 'Large Blend', 'Large Value']:
             df = df[df['Morningstar Category'] == category]
         
-        # Add debug prints right after filtering
-        st.write('After category filtering:')
-        st.write('Shape:', df.shape)
-        st.write('Categories present:', df['Morningstar Category'].unique().tolist())
+
 
         if active_share_threshold > 0:
             df = df[df[active_share_benchmark] >= active_share_threshold]
