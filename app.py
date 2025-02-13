@@ -9,7 +9,7 @@ import streamlit as st
 import pandas as pd
 from src.plotting import (create_box_whisker_plot, 
                          create_risk_return_scatter, 
-                         create_market_cap_bubble)
+                         create_market_cap_bubble,create_market_cap_animation)
 
 st.set_page_config(page_title="SWS Peer Analysis", layout="wide")
 
@@ -102,10 +102,11 @@ if uploaded_file is not None:
 
         
         # Create tabs for different visualizations
-        tab1, tab2, tab3 = st.tabs([
+        tab1, tab2, tab3, tab4 = st.tabs([
             "Performance Distribution", 
             "Risk-Return Analysis", 
-            "Market Cap Distribution"
+            "Market Cap Distribution",
+            "Market Cap Animation"
         ])
         
         # Performance Distribution Tab
@@ -128,7 +129,13 @@ if uploaded_file is not None:
                 create_market_cap_bubble(df),
                 use_container_width=True
             )
-            
+        
+        # Market Cap Animation Tab
+        with tab4:
+            st.plotly_chart(
+                create_market_cap_animation(df),
+                use_container_width=True
+            )
     except Exception as e:
         st.error(f"Error processing data: {str(e)}")
         st.error("Please ensure your CSV file has the required columns and format.")
