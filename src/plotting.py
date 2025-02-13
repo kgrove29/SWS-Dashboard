@@ -283,7 +283,7 @@ def create_market_cap_bubble(df):
         bar_height = grouped[grouped['Market Cap Bucket'] == target_bucket]['Total AUM'].iloc[0]
         
         # Add marker at 20% of bar height
-        marker_height = bar_height * 0.2 / 1000  # Convert to trillions
+        marker_height = bar_height * 0.2 / 1000000  # Convert to billions
         
         fig.add_trace(go.Scatter(
             x=[target_bucket],
