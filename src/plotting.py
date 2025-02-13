@@ -358,9 +358,19 @@ def create_market_cap_bubble(df):
 
 def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     """Create animated market cap distribution chart using Plotly."""
-    # Extract years from column names
-    years = [int(col.split()[-1]) for col in df.columns.astype(str) 
-            if 'Market Cap ($B)' in col]
+    # Convert column names to strings and extract years
+    years = []
+    for col in df.columns.astype(str):
+        if 'Market Cap ($B)' in col:
+            try:
+                year = int(col.split()[-1])
+                years.append(year)
+            except ValueError:
+                continue
+    
+    # Ensure we have years to process
+    if not years:
+        raise ValueError("No market cap columns found in the data")
     
     # Create market cap buckets
     market_cap_bins = [0, 250, 500, 1000, float('inf')]
