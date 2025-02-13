@@ -247,7 +247,7 @@ def create_market_cap_bubble(df):
     
     # Create Market Cap buckets
     df['Market Cap Bucket'] = pd.cut(
-        df['Market Cap ($B)'],
+        df['Market Cap ($B) 2024'],
         bins=[0, 250, 500, 1000, float('inf')],
         labels=['$0-250B', '$250-500B', '$500-1T', '$1T+']
     )
@@ -278,7 +278,7 @@ def create_market_cap_bubble(df):
     target_data = df[df['Fund'] == target_fund]
     if not target_data.empty:
         target_bucket = target_data['Market Cap Bucket'].iloc[0]
-        target_market_cap = target_data['Market Cap ($B)'].iloc[0]
+        target_market_cap = target_data['Market Cap ($B) 2024'].iloc[0]
         bar_height = grouped[grouped['Market Cap Bucket'] == target_bucket]['Total AUM'].iloc[0]
         
         # Add marker at 20% of bar height
@@ -365,7 +365,7 @@ def create_market_cap_animation(df):
     market_cap_labels = ['$0-250B', '$250-500B', '$500-1T', '$1T+']
     
     # Get list of years from columns
-    years = [int(col.split()[-1]) for col in df.columns if 'Market Cap ($B)' in col]
+    years = [int(col.split()[-1]) for col in df.columns if Market Cap ($B) 2024' in col]
     years.sort()
     
     # Create figure
@@ -374,7 +374,7 @@ def create_market_cap_animation(df):
     # Calculate maximum y value for consistent scaling
     max_aum = 0
     for year in years:
-        cap_col = f'Market Cap ($B) {year}'
+        cap_col = fMarket Cap ($B) 2024 {year}'
         year_grouped = (
             df.groupby(
                 pd.cut(df[cap_col], bins=market_cap_bins, labels=market_cap_labels),
