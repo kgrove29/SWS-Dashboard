@@ -8,6 +8,7 @@ Created on Wed Feb 12 16:47:08 2025
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
+import streamlit as st
 
 def create_box_whisker_plot(df):
     """Create box and whisker plot using Plotly."""
@@ -365,12 +366,16 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
             try:
                 year = int(col.split()[-1])
                 years.append(year)
+                #ensure the column data is numeric
+                df[col] = pd.to_numeric(df[col], errors='coerce')
             except ValueError:
-                continue
-    
+                continue    
     # Ensure we have years to process
     if not years:
+        st.error("No market cap columns found in the data. Expected format: 'Market Cap ($B) yyyy'")
         raise ValueError("No market cap columns found in the data")
+    
+    print('Found years:', years)
     
     # Create market cap buckets
     market_cap_bins = [0, 250, 500, 1000, float('inf')]
