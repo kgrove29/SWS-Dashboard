@@ -481,25 +481,14 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
             title='Total AUM ($B)',
             tickformat='$,.0f'
         ),
-        updatemenus=[dict(
-            type='buttons',
-            showactive=False,
-            buttons=[
-                dict(label='Play',
-                     method='animate',
-                     args=[None, {'frame': {'duration': 1000}}]),
-                dict(label='Pause',
-                     method='animate',
-                     args=[[None], {'frame': {'duration': 0}}])
-            ]
-        )],
+
         sliders=[{
             'currentvalue': {'prefix': 'Year: '},
             'steps': [{'args': [[str(year)]], 
                       'label': str(year),
                       'method': 'animate'} for year in years],
             'transition': {'duration': 300},
-            'x': 0.1,
+            'x': 0.05,
             'len': 0.9
         }]
     )
