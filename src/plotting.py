@@ -356,208 +356,24 @@ def create_market_cap_bubble(df):
     
     return fig
 
-
-def animate_market_cap_distribution(data: pd.DataFrame, 
-                                  years: list,
-                                  target_fund: str = 'SWS Growth Equity'):
-    """
-    Create an animated bar chart showing market cap distribution changes over time.
-    """
+def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
+    """Create animated market cap distribution chart using Plotly."""
+    # Extract years from column names
+    years = [int(col.split()[-1]) for col in df.columns.astype(str) 
+            if 'Market Cap ($B)' in col]
+    
     # Create market cap buckets
     market_cap_bins = [0, 250, 500, 1000, float('inf')]
     market_cap_labels = ['$0-250B', '$250-500B', '$500-1T', '$1T+']
-    
-    # Create figure
-    fig = go.Figure()
-    
-    # Create frames for each year
-    frames = []
-    for year in years:
-        cap_col = f'Market Cap ($B) {year}'
-        
-        # Group data for this year and ensure all buckets exist
-        year_grouped = (
-            data.groupby(
-                pd.cut(data[cap_col], bins=market_cap_bins, labels=market_cap_labels),
-                observed=True
-            ).agg({
-                'Fund AUM': ['sum', 'count']
-            })
-            .reindex(market_cap_labels)  # Ensure all buckets exist
-        )
-        
-        # Fill NaN values with 0 for both sum and count
-        year_grouped[('Fund AUM', 'sum')] = year_grouped[('Fund AUM', 'sum')].fillna(0)
-        year_grouped[('Fund AUM', 'count')] = year_grouped[('Fund AUM', 'count')].fillna(0)
-        
-        year_grouped = year_grouped.reset_index()
-        
-        # Create frame
-        frame = go.Frame(
-            data=[
-                go.Bar(
-                    name=str(year),
-                    x=list(range(len(market_cap_labels))),
-                    y=year_grouped[('Fund AUM', 'sum')],
-                    text=[f'n={int(x)}<br><b>${y/1e9:,.0f}B</b>' 
-                          for x, y in zip(year_grouped[('Fund AUM', 'count')], 
-                                        year_grouped[('Fund AUM', 'sum')])],
-                    textposition='auto',
-                    marker_color='rgb(100, 149, 237)',
-                    width=0.8,
-                    opacity=1.0
-                )
-            ],
-            name=str(year)
-        )
-        
-        # Add SWS marker annotation to frame
-        sws_data = data[data['Fund'] == target_fund]
-        if not sws_data.empty:
-            market_cap = sws_data[cap_col].iloc[0]
-            if not pd.isna(market_cap):
-                bucket = pd.cut([market_cap], bins=market_cap_bins, labels=market_cap_labels)[0]
-                if not pd.isna(bucket):
-                    bucket_idx = list(market_cap_labels).index(bucket)
-                    bar_height = year_grouped[('Fund AUM', 'sum')].iloc[bucket_idx]
-                    
-                    frame.layout = go.Layout(
-                        annotations=[
-                            dict(
-                                x=bucket_idx,
-                                y=bar_height * 1.1,
-                                text=f"<b>SWS Growth Equity ({year})</b><br>Market Cap: ${market_cap:.1f}B",
-                                showarrow=True,
-                                arrowhead=2,
-                                arrowsize=1,
-                                arrowwidth=2,
-                                arrowcolor='red',
-                                bgcolor='white',
-                                bordercolor='red',
-                                borderwidth=2,
-                                borderpad=4,
-                                font=dict(color='black', size=10)
-                            )
-                        ]
-                    )
-        
-        frames.append(frame)
-    
-    # Add first frame to figure
-    fig.add_trace(frames[0].data[0])
-    
-    # Calculate maximum y value across all years for setting axis range
-    max_aum = 0
-    for year in years:
-        cap_col = f'Market Cap ($B) {year}'
-        year_grouped = (
-            data.groupby(
-                pd.cut(data[cap_col], bins=market_cap_bins, labels=market_cap_labels),
-                observed=True
-            ).agg({
-                'Fund AUM': ['sum', 'count']
-            })
-            .reindex(market_cap_labels)
-        )
-        year_grouped[('Fund AUM', 'sum')] = year_grouped[('Fund AUM', 'sum')].fillna(0)
-        max_year_aum = year_grouped[('Fund AUM', 'sum')].max()
-        max_aum = max(max_aum, max_year_aum)
-    
-    # Add 20% padding to max_aum for better visibility
-    y_axis_max = max_aum * 1.2
-    
-    # Update layout with adjusted y-axis range
-    fig.update_layout(
-        title='Market Cap Distribution Over Time',
-        xaxis=dict(
-            title='Weighted Average Market Cap',
-            ticktext=market_cap_labels,
-            tickvals=list(range(len(market_cap_labels))),
-            range=[-0.5, len(market_cap_labels) - 0.5]
-        ),
-        yaxis=dict(
-            title='Total AUM ($B)',
-            tickformat='$,.0f',
-            range=[0, y_axis_max]  # Set y-axis range with padding
-        ),
-        updatemenus=[
-            dict(
-                type='buttons',
-                showactive=False,
-                buttons=[
-                    dict(label='Play',
-                         method='animate',
-                         args=[None, {'frame': {'duration': 1000, 'redraw': True},
-                                    'fromcurrent': True}]),
-                    dict(label='Pause',
-                         method='animate',
-                         args=[[None], {'frame': {'duration': 0, 'redraw': False},
-                                      'mode': 'immediate',
-                                      'transition': {'duration': 0}}])
-                ],
-                x=0.1,
-                y=1.1
-            )
-        ],
-        sliders=[{
-            'currentvalue': {'prefix': 'Year: '},
-            'steps': [{'args': [[f'{year}'],
-                               {'frame': {'duration': 0, 'redraw': True},
-                                'mode': 'immediate',
-                                'transition': {'duration': 0}}],
-                      'label': str(year),
-                      'method': 'animate'} for year in years]
-        }],
-        plot_bgcolor='white',
-        paper_bgcolor='white'
-    )
-    
-    # Add frames to figure
-    fig.frames = frames
-    
-    # Add grid lines
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGray')
-    
-    return fig
-
-    """Create animated market cap distribution chart using Plotly."""
     target_fund = 'SWS Growth Equity'
     
-    # Create market cap buckets
-    market_cap_bins = [0, 250, 500, 1000, float('inf')]
-    market_cap_labels = ['$0-250B', '$250-500B', '$500-1T', '$1T+']
-    
-    # Get list of years from columns
-    years = [int(col.split()[-1]) for col in df.columns if 'Market Cap ($B) 2024' in col]
-    years.sort()
-    
-    # Create figure
+    # Create figure and frames
     fig = go.Figure()
-    
-    # Calculate maximum y value for consistent scaling
-    max_aum = 0
-    for year in years:
-        cap_col = f'Market Cap ($B) 2024 {year}'
-        year_grouped = (
-            df.groupby(
-                pd.cut(df[cap_col], bins=market_cap_bins, labels=market_cap_labels),
-                observed=True
-            ).agg({
-                'Fund AUM': ['sum', 'count']
-            })
-            .reindex(market_cap_labels)
-        )
-        year_grouped[('Fund AUM', 'sum')] = year_grouped[('Fund AUM', 'sum')].fillna(0)
-        max_year_aum = year_grouped[('Fund AUM', 'sum')].max()
-        max_aum = max(max_aum, max_year_aum)
-    
-    # Add 20% padding to max_aum
-    y_axis_max = max_aum * 1.2
-    
-    # Create frames for each year
     frames = []
+    
     for year in years:
         cap_col = f'Market Cap ($B) {year}'
+        df[cap_col] = pd.to_numeric(df[cap_col], errors='coerce')
         
         year_grouped = (
             df.groupby(
@@ -569,124 +385,57 @@ def animate_market_cap_distribution(data: pd.DataFrame,
             .reindex(market_cap_labels)
         )
         
-        year_grouped[('Fund AUM', 'sum')] = year_grouped[('Fund AUM', 'sum')].fillna(0)
-        year_grouped[('Fund AUM', 'count')] = year_grouped[('Fund AUM', 'count')].fillna(0)
-        
-        year_grouped = year_grouped.reset_index()
+        year_grouped = year_grouped.fillna(0).reset_index()
         
         frame = go.Frame(
-            data=[
-                go.Bar(
-                    name=str(year),
-                    x=list(range(len(market_cap_labels))),
-                    y=year_grouped[('Fund AUM', 'sum')],
-                    text=[f'n={int(x)}<br><b>${y/1e9:,.0f}B</b>' 
-                          for x, y in zip(year_grouped[('Fund AUM', 'count')], 
-                                        year_grouped[('Fund AUM', 'sum')])],
-                    textposition='auto',
-                    marker_color='rgb(100, 149, 237)',
-                    width=0.8,
-                    opacity=1.0
-                )
-            ],
+            data=[go.Bar(
+                x=list(range(len(market_cap_labels))),
+                y=year_grouped[('Fund AUM', 'sum')],
+                text=[f'n={int(x)}<br><b>${y/1e9:,.0f}B</b>' 
+                      for x, y in zip(year_grouped[('Fund AUM', 'count')], 
+                                    year_grouped[('Fund AUM', 'sum')])],
+                textposition='auto',
+                marker_color='rgb(100, 149, 237)',
+                width=0.8
+            )],
             name=str(year)
         )
-        
-        # Add SWS marker annotation
-        sws_data = df[df['Fund'] == target_fund]
-        if not sws_data.empty:
-            market_cap = sws_data[cap_col].iloc[0]
-            if not pd.isna(market_cap):
-                bucket = pd.cut([market_cap], bins=market_cap_bins, labels=market_cap_labels)[0]
-                if not pd.isna(bucket):
-                    bucket_idx = list(market_cap_labels).index(bucket)
-                    bar_height = year_grouped[('Fund AUM', 'sum')].iloc[bucket_idx]
-                    
-                    frame.layout = go.Layout(
-                        annotations=[
-                            dict(
-                                x=bucket_idx,
-                                y=bar_height * 1.1,
-                                text=f"<b>SWS Growth Equity ({year})</b><br>Market Cap: ${market_cap:.1f}B",
-                                showarrow=True,
-                                arrowhead=2,
-                                arrowsize=1,
-                                arrowwidth=2,
-                                arrowcolor='red',
-                                bgcolor='white',
-                                bordercolor='red',
-                                borderwidth=2,
-                                borderpad=4,
-                                font=dict(color='black', size=10)
-                            )
-                        ]
-                    )
-        
         frames.append(frame)
     
     # Add first frame to figure
     fig.add_trace(frames[0].data[0])
     
     # Update layout
-    total_funds = len(df['Fund'].unique())
-    categories = ', '.join(df['Morningstar Category'].unique())
-    
     fig.update_layout(
-        title={
-            'text': f'Market Cap Distribution Over Time: {categories} Funds<br>' +
-                   f'<sup>Analysis includes {total_funds} funds</sup>',
-            'y':0.95,
-            'x':0.5,
-            'xanchor': 'center',
-            'yanchor': 'top'
-        },
+        title='Market Cap Distribution Over Time',
         xaxis=dict(
-            title='Weighted Average Market Cap',
+            title='Market Cap Range',
             ticktext=market_cap_labels,
-            tickvals=list(range(len(market_cap_labels))),
-            range=[-0.5, len(market_cap_labels) - 0.5]
+            tickvals=list(range(len(market_cap_labels)))
         ),
         yaxis=dict(
             title='Total AUM ($B)',
-            tickformat='$,.0f',
-            range=[0, y_axis_max]
+            tickformat='$,.0f'
         ),
-        updatemenus=[
-            dict(
-                type='buttons',
-                showactive=False,
-                buttons=[
-                    dict(label='Play',
-                         method='animate',
-                         args=[None, {'frame': {'duration': 1000, 'redraw': True},
-                                    'fromcurrent': True}]),
-                    dict(label='Pause',
-                         method='animate',
-                         args=[[None], {'frame': {'duration': 0, 'redraw': False},
-                                      'mode': 'immediate',
-                                      'transition': {'duration': 0}}])
-                ],
-                x=0.1,
-                y=1.1
-            )
-        ],
+        updatemenus=[dict(
+            type='buttons',
+            showactive=False,
+            buttons=[
+                dict(label='Play',
+                     method='animate',
+                     args=[None, {'frame': {'duration': 1000}}]),
+                dict(label='Pause',
+                     method='animate',
+                     args=[[None], {'frame': {'duration': 0}}])
+            ]
+        )],
         sliders=[{
             'currentvalue': {'prefix': 'Year: '},
-            'steps': [{'args': [[f'{year}'],
-                               {'frame': {'duration': 0, 'redraw': True},
-                                'mode': 'immediate',
-                                'transition': {'duration': 0}}],
+            'steps': [{'args': [[str(year)]], 
                       'label': str(year),
                       'method': 'animate'} for year in years]
-        }],
-        plot_bgcolor='white',
-        paper_bgcolor='white'
+        }]
     )
     
-    # Add frames to figure
     fig.frames = frames
-    
-    # Add grid lines
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGray')
-    
     return fig

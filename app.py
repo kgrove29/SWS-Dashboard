@@ -10,7 +10,7 @@ import pandas as pd
 from src.plotting import (create_box_whisker_plot, 
                          create_risk_return_scatter, 
                          create_market_cap_bubble,
-                         animate_market_cap_distribution)
+                         create_market_cap_animation)
 
 st.set_page_config(page_title="SWS Peer Analysis", layout="wide")
 
@@ -45,7 +45,6 @@ holdings_filter = st.sidebar.slider(
 
 market_cap_filter = st.sidebar.slider(
     'Maximum Wtd. Market Cap ($Bs)', 0, 1500, 2000,100)
-
 
 
 # File uploader
@@ -135,7 +134,7 @@ if uploaded_file is not None:
         # Market Cap Animation Tab
         with tab4:
             st.plotly_chart(
-                animate_market_cap_distribution(df),
+                create_market_cap_animation(df),
                 use_container_width=True
             )
     except Exception as e:
