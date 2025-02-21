@@ -147,8 +147,6 @@ else:
     **Required CSV Format:**
     ```
     Fund,Fund AUM,Market Cap ($B),1YR,3YR,5YR,SI,Morningstar Category
-    Fund Name 1,5.2,320,0.15,0.45,0.62,0.75,Large Growth
-    Fund Name 2,3.1,280,0.12,0.38,0.55,0.68,Large Growth
     ...
     ```
     """)
