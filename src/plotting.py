@@ -381,7 +381,8 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
             errors='coerce'
         )
 
-    # Ensure we have years to process
+    # Debugging: Print years and check if empty
+    print("Years extracted:", years)
     if not years:
         st.error("No market cap columns found in the data. Expected format: 'Market Cap ($B) yyyy'")
         raise ValueError("No market cap columns found in the data")
