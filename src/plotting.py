@@ -480,10 +480,10 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     y_max = max_y * 1.2
 
     # Create a dynamic title
-    categories = ', '.join(df['Morningstar Category'].unique())
+    categories_market_cap = ', '.join(df['Morningstar Category'].unique())
     fig.update_layout(
         title={
-            'text': f'Market Cap Distribution: {categories} Funds<br>',
+            'text': f'Market Cap Distribution: {categories_market_cap} Funds<br>',
             'y':0.95,
             'x':0.5,
             'xanchor': 'center',
