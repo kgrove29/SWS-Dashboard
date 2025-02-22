@@ -431,10 +431,9 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
         if not target_data.empty:
             target_market_cap = target_data[cap_col].iloc[0]
             target_bucket_series = pd.cut(pd.Series([target_market_cap]), bins=market_cap_bins, labels=market_cap_labels, include_lowest=True)
-            target_bucket = target_bucket_series.iloc[0] if not target_bucket_series.isna().any() else None
-
-
-            if target_bucket is not None:
+            target_bucket = target_bucket_series.iloc[0] if len(target_bucket_series) > 0 and not target_bucket_series.isna().any() else None
+            
+            if target_bucket is not None and isinstance(target_bucket, str):
                 bucket_index = market_cap_labels.index(target_bucket)
                 
                 frame = go.Frame(
