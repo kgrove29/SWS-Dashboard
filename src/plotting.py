@@ -481,7 +481,13 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     # Update layout
     categories = ', '.join(df['Morningstar Category'].unique())
     fig.update_layout(
-        title=f'Market Cap Distribution Over Time for {categories}',
+        title={
+            'text': f'Market Cap Distribution: {categories} Funds<br>',
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
         xaxis=dict(
             title='Market Cap Range',
             ticktext=market_cap_labels,
@@ -505,4 +511,5 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     )
     
     fig.frames = frames
+
     return fig
