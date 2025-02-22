@@ -430,7 +430,7 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
         target_data = df[df['Fund'] == target_fund]
         if not target_data.empty:
             target_market_cap = target_data[cap_col].iloc[0]
-            target_bucket = pd.cut([target_market_cap], bins=market_cap_bins, labels=market_cap_labels, include_lowest=True)[0]
+            target_bucket = pd.cut(pd.Series(target_market_cap), bins=market_cap_bins, labels=market_cap_labels, include_lowest=True).iloc[0]
             if pd.notna(target_bucket):
                 bucket_index = market_cap_labels.index(target_bucket)
                 
@@ -513,3 +513,4 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     fig.frames = frames
 
     return fig
+
