@@ -404,7 +404,7 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
         
         year_grouped = (
             df.groupby(
-                pd.cut(df[cap_col], bins=market_cap_bins, labels=market_cap_labels),
+                pd.cut(df[cap_col], bins=market_cap_bins, labels=market_cap_labels, include_lowest=True),
                 observed=True
             ).agg({
                 'Fund AUM': ['sum', 'count']
@@ -430,36 +430,36 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
         target_data = df[df['Fund'] == target_fund]
         if not target_data.empty:
             target_market_cap = target_data[cap_col].iloc[0]
-            target_bucket = pd.cut([target_market_cap], bins=market_cap_bins, labels=market_cap_labels)[0]
-            bucket_index = market_cap_labels.index(target_bucket)
-            
-            frame = go.Frame(
-                data=frame_data,
-                name=str(year),
-                layout=dict(
-                    annotations=[dict(
-                        x=bucket_index,
-                        y=year_grouped.loc[bucket_index, ('Fund AUM', 'sum')] * 0.8,  # Changed from 0.2 to 0.8
-                        text=f"<b>SWS Growth Equity</b><br>Market Cap: ${target_market_cap:.1f}B",
-                        yshift=60,  # Increased from 40 to 60
-                        showarrow=True,
-                        arrowhead=2,
-                        arrowsize=1,
-                        arrowwidth=2,
-                        arrowcolor='black',
-                        bgcolor='black',
-                        bordercolor='black',
-                        borderwidth=2,
-                        borderpad=4,
-                        font=dict(color='white', size=10)
-                    )]
+            target_bucket = pd.cut([target_market_cap], bins=market_cap_bins, labels=market_cap_labels, include_lowest=True)[0]
+            if pd.notna(target_bucket):
+                bucket_index = market_cap_labels.index(target_bucket)
+                
+                frame = go.Frame(
+                    data=frame_data,
+                    name=str(year),
+                    layout=dict(
+                        annotations=[dict(
+                            x=bucket_index,
+                            y=year_grouped.loc[bucket_index, ('Fund AUM', 'sum')] * 0.8,  # Changed from 0.2 to 0.8
+                            text=f"<b>SWS Growth Equity</b><br>Market Cap: ${target_market_cap:.1f}B",
+                            yshift=60,  # Increased from 40 to 60
+                            showarrow=True,
+                            arrowhead=2,
+                            arrowsize=1,
+                            arrowwidth=2,
+                            arrowcolor='black',
+                            bgcolor='black',
+                            bordercolor='black',
+                            borderwidth=2,
+                            borderpad=4,
+                            font=dict(color='white', size=10)
+                        )]
+                    )
                 )
-            )
+            else:
+                frame = go.Frame(data=frame_data, name=str(year))
         else:
-            frame = go.Frame(
-                data=frame_data,
-                name=str(year)
-            )
+            frame = go.Frame(data=frame_data, name=str(year))
         
         frames.append(frame)
     
