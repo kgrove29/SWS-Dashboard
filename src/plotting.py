@@ -513,3 +513,5 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     fig.frames = frames
 
     return fig
+
+
