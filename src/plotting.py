@@ -439,9 +439,9 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
                 layout=dict(
                     annotations=[dict(
                         x=bucket_index,
-                        y=year_grouped.loc[bucket_index, ('Fund AUM', 'sum')] * 0.8,  # Changed from 0.2 to 0.8
+                        y=year_grouped.loc[bucket_index, ('Fund AUM', 'sum')] * 0.8,
                         text=f"<b>SWS Growth Equity</b><br>Market Cap: ${target_market_cap:.1f}B",
-                        yshift=60,  # Increased from 40 to 60
+                        yshift=60,
                         showarrow=True,
                         arrowhead=2,
                         arrowsize=1,
@@ -469,9 +469,25 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
         first_annotation = frames[0].layout['annotations'][0]
         fig.add_annotation(first_annotation)
     
-    # Update layout
+    max_y = max(
+        max(
+            frame.data[0].y
+            for frame in frames
+        )
+    )
+    
+    y_max = max_y * 1.2
+
+    # Create a dynamic title
+    categories = ', '.join(df['Morningstar Category'].unique())
     fig.update_layout(
-        title='Market Cap Distribution Over Time',
+        title={
+            'text': f'Market Cap Distribution: {categories} Funds<br>',
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
         xaxis=dict(
             title='Market Cap Range',
             ticktext=market_cap_labels,
@@ -479,7 +495,8 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
         ),
         yaxis=dict(
             title='Total AUM ($B)',
-            tickformat='$,.0f'
+            tickformat='$,.0f',
+            range=[0, y_max]
         ),
 
         sliders=[{
@@ -494,5 +511,6 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     )
     
     fig.frames = frames
+
     return fig
 
