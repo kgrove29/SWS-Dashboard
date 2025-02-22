@@ -479,8 +479,9 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
     y_max = max_y *1.2
 
     # Update layout
+    categories = ', '.join(df['Morningstar Category'].unique())
     fig.update_layout(
-        title=f'Market Cap Distribution Over Time for {','.join(df["Morningstar Category"].unique())}',
+        title=f'Market Cap Distribution Over Time for {categories}',
         xaxis=dict(
             title='Market Cap Range',
             ticktext=market_cap_labels,
