@@ -7,8 +7,6 @@ Created on Wed Feb 12 16:44:18 2025
 
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
-import numpy as np
 from src.plotting import (create_box_whisker_plot, 
                          create_risk_return_scatter, 
                          create_market_cap_bubble,
@@ -95,13 +93,13 @@ if uploaded_file is not None:
 
 
         if active_share_threshold > 0:
-            df = df[df[active_share_benchmark].astype(float) >= active_share_threshold]
+            df = df[df[active_share_benchmark] >= active_share_threshold]
         
         if holdings_filter < 2000:
-            df = df[df['Total Holdings'].astype(float) < holdings_filter]
+            df = df[df['Total Holdings'] < holdings_filter]
         
         if market_cap_filter < 2000:
-            df = df[df['Market Cap ($B) 2024'].astype(float) < market_cap_filter]
+            df = df[df['Market Cap ($B) 2024'] < market_cap_filter]
 
         
         # Create tabs for different visualizations
