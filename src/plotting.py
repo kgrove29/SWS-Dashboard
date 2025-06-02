@@ -12,7 +12,7 @@ import streamlit as st
 
 def create_box_whisker_plot(df):
     """Create box and whisker plot using Plotly."""
-    periods = ['1YR', '3YR', '5YR', 'SI']
+    periods = ['1YR', '3YR', '5YR','7YR', 'SI']
     target_fund = 'SWS Growth Equity'
 
     
