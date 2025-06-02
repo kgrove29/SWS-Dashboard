@@ -17,7 +17,7 @@ st.set_page_config(page_title="SWS Peer Analysis", layout="wide")
 # Add title and description
 st.title("SWS Peer Analysis Dashboard")
 st.markdown("""
-This dashboard provides a comparative analysis of SWS Dividend Equity against peer funds.
+This dashboard provides a comparative analysis of SWS Growth Equity against peer funds.
 """)
 
 # Add filters in sidebar
@@ -63,12 +63,12 @@ if uploaded_file is not None:
 
 
          # Convert numeric columns
-        numeric_columns = ['1YR', '3YR', '5YR', 'SI', 'Fund AUM', 'Market Cap ($B) 2024']
+        numeric_columns = ['1YR', '3YR', '5YR','7YR' 'SI', 'Fund AUM', 'Market Cap ($B) 2024']
         for col in numeric_columns:
             if col == 'Fund AUM':
                 # Remove $ and commas, and any trailing spaces
                 df[col] = df[col].str.strip().str.replace('$', '').str.replace(',', '').astype(float)
-            elif col in ['1YR', '3YR', '5YR', 'SI']:
+            elif col in ['1YR', '3YR', '5YR','7YR', 'SI']:
                 # Remove % sign and convert to decimal
                 df[col] = df[col].str.rstrip('%').astype(float) 
             else:
@@ -76,7 +76,7 @@ if uploaded_file is not None:
                 df[col] = pd.to_numeric(df[col].str.replace(',', ''), errors='coerce')
 
             #If these are percentages in the CSV, convert to decimals
-            if col in ['1YR', '3YR', '5YR', 'SI']:
+            if col in ['1YR', '3YR', '5YR','7YR', 'SI']:
                 df[col] = df[col] / 100
 
 
@@ -146,7 +146,7 @@ else:
     st.markdown("""
     **Required CSV Format:**
     ```
-    Fund,Fund AUM,Market Cap ($B),1YR,3YR,5YR,SI,Morningstar Category
+    Fund,Fund AUM,Market Cap ($B),1YR,3YR,5YR,7YR,SI,Morningstar Category
     ...
     ```
     """)
