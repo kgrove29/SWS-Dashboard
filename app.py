@@ -63,7 +63,7 @@ if uploaded_file is not None:
 
 
          # Convert numeric columns
-        numeric_columns = ['1YR', '3YR', '5YR','7YR' 'SI', 'Fund AUM', 'Market Cap ($B) 2024']
+        numeric_columns = ['1YR', '3YR', '5YR','7YR', 'SI', 'Fund AUM', 'Market Cap ($B) 2024']
         for col in numeric_columns:
             if col == 'Fund AUM':
                 # Remove $ and commas, and any trailing spaces
