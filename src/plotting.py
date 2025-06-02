@@ -13,7 +13,7 @@ import streamlit as st
 def create_box_whisker_plot(df):
     """Create box and whisker plot using Plotly."""
     periods = ['1YR', '3YR', '5YR', 'SI']
-    target_fund = 'SWS Dividend Equity'
+    target_fund = 'SWS Growth Equity'
 
     
     fig = go.Figure()
@@ -46,7 +46,7 @@ def create_box_whisker_plot(df):
             showlegend=True if period == '1YR' else False
         ))
         
-        # Add SWS Dividend Equity callout box for each period
+        # Add SWS Growth Equity callout box for each period
         target_data = df[df['Fund'] == target_fund]
         if len(target_data) > 0:
             target_return = target_data[period].iloc[0]
@@ -55,7 +55,7 @@ def create_box_whisker_plot(df):
             fig.add_annotation(
                 x=period,
                 y=target_return + 0.05,
-                text=f"<b>SWS Dividend Equity</b><br>Return: {target_return:.1%}<br>Rank: {rank:.0f}%ile",
+                text=f"<b>SWS Growth Equity</b><br>Return: {target_return:.1%}<br>Rank: {rank:.0f}%ile",
                 showarrow=True,
                 arrowhead=2,
                 arrowsize=1,
@@ -68,7 +68,7 @@ def create_box_whisker_plot(df):
                 font=dict(color='white', size=10)
             )
 
-            # Add marker for SWS Dividend Equity
+            # Add marker for SWS Growth Equity
             fig.add_trace(go.Scatter(
                 x=[period],
                 y=[target_return],
@@ -154,7 +154,7 @@ def create_box_whisker_plot(df):
 
 def create_risk_return_scatter(df):
     """Create risk-return scatter plot using Plotly."""
-    target_fund = 'SWS Dividend Equity'  # You might want to make this configurable
+    target_fund = 'SWS Growth Equity'  # You might want to make this configurable
     
     # Split data into target fund and peers
     target_data = df[df['Fund'] == target_fund]
@@ -243,7 +243,7 @@ def create_risk_return_scatter(df):
 def create_market_cap_bubble(df):
 
     """Create market cap distribution chart using Plotly."""
-    target_fund = 'SWS Dividend Equity'
+    target_fund = 'SWS Growth Equity'
     
     # Create Market Cap buckets
     df['Market Cap Bucket'] = pd.cut(
@@ -301,7 +301,7 @@ def create_market_cap_bubble(df):
         fig.add_annotation(
             x=target_bucket,
             y=marker_height,
-            text=f"<b>SWS Dividend Equity</b><br>Wtd. Avg. Market Cap: ${target_market_cap:.1f}B",
+            text=f"<b>SWS Growth Equity</b><br>Wtd. Avg. Market Cap: ${target_market_cap:.1f}B",
             showarrow=True,
             arrowhead=2,
             arrowsize=1,
@@ -386,7 +386,7 @@ def create_market_cap_bubble(df):
         # Create market cap buckets
         market_cap_bins = [0, 250, 500, 1000, float('inf')]
         market_cap_labels = ['$0-250B', '$250-500B', '$500-1T', '>$1T']
-        target_fund = 'SWS Dividend Equity'
+        target_fund = 'SWS Growth Equity'
         
         # Process each year
         for col, year in market_cap_cols:
@@ -618,7 +618,7 @@ def create_market_cap_animation(df: pd.DataFrame) -> go.Figure:
         # Create market cap buckets
         market_cap_bins = [0, 250, 500, 1000, float('inf')]
         market_cap_labels = ['$0-250B', '$250-500B', '$500-1T', '>$1T']
-        target_fund = 'SWS Dividend Equity'
+        target_fund = 'SWS Growth Equity'
         
         # Process each year
         for col, year in market_cap_cols:
