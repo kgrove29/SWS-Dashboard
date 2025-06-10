@@ -17,7 +17,7 @@ st.set_page_config(page_title="SWS Peer Analysis", layout="wide")
 # Add title and description
 st.title("SWS Peer Analysis Dashboard")
 st.markdown("""
-This dashboard provides a comparative analysis of SWS Growth Equity against peer funds.
+This dashboard provides a comparative analysis of SWS Dividend Equity against peer funds.
 """)
 
 # Add filters in sidebar

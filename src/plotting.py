@@ -163,7 +163,6 @@ def create_box_whisker_plot(df, target_fund):
 
 def create_risk_return_scatter(df, target_fund):
     """Create risk-return scatter plot using Plotly."""
-    target_fund = 'SWS Growth Equity'  # You might want to make this configurable
     
     # Split data into target fund and peers
     target_data = df[df['Fund'] == target_fund]
@@ -251,7 +250,6 @@ def create_risk_return_scatter(df, target_fund):
 
 def create_market_cap_bubble(df, target_fund):
     """Create market cap distribution chart using Plotly."""
-    target_fund = 'SWS Growth Equity'
     
     # Create Market Cap buckets
     df['Market Cap Bucket'] = pd.cut(
@@ -422,7 +420,7 @@ def create_market_cap_animation(df, target_fund):
                 y=[grouped[grouped['temp_bucket'] == label]['Fund AUM'].sum() / 1e9 
                    if label in grouped['temp_bucket'].values else 0 
                    for label in market_cap_labels],
-                text=[f"n={int(grouped[grouped['temp_bucket'] == label]['Fund'].count())}<br>${grouped[grouped['temp_bucket'] == label]['Fund AUM'].sum()/1e9:,.0f}B" 
+                text=[f"Total Funds: {len(df[df['temp_bucket'] == label])}<br>${grouped[grouped['temp_bucket'] == label]['Fund AUM'].sum()/1e9:,.0f}B" 
                       if label in grouped['temp_bucket'].values else "n=0<br>$0B"
                       for label in market_cap_labels],
                 textposition='auto',
@@ -440,19 +438,71 @@ def create_market_cap_animation(df, target_fund):
                     labels=market_cap_labels
                 )[0]
                 
-                # Calculate marker height
-                bar_height = grouped.loc[grouped['temp_bucket'] == target_bucket, 'Fund AUM'].iloc[0] / 1e9
-                marker_height = bar_height * 1.1
+                # Calculate marker height - fixed calculation
+                bucket_data = grouped[grouped['temp_bucket'] == target_bucket]
+                if not bucket_data.empty:
+                    bar_height = float(bucket_data['Fund AUM'].iloc[0]) / 1e9
+                    marker_height = float(bar_height * 1.1)
+                    
+                    # Create frame with annotation
+                    frame = go.Frame(
+                        data=frame_data,
+                        name=str(year),
+                        layout=dict(
+                            annotations=[dict(
+                                x=target_bucket,
+                                y=marker_height,
+                                text=f"<b>{target_fund}</b><br>Wtd. Market Cap: ${target_data[col].iloc[0]:.1f}B",
+                                showarrow=True,
+                                arrowhead=2,
+                                arrowsize=1,
+                                arrowwidth=2,
+                                arrowcolor='black',
+                                bgcolor='black',
+                                bordercolor='black',
+                                borderwidth=2,
+                                borderpad=4,
+                                font=dict(color='white', size=10),
+                                yshift=20
+                            )]
+                        )
+                    )
+            if 'frame' not in locals():
+                frame = go.Frame(data=frame_data, name=str(year))
+            
+            frames.append(frame)
+            
+        # Add initial data
+        if frames:
+            for trace in frames[0].data:
+                fig.add_trace(trace)
+            
+            # Add initial annotation if target fund exists
+            if target_fund in df['Fund'].values:
+                first_col = market_cap_cols[0][0]
+                target_data = df[df['Fund'] == target_fund]
+                target_bucket = pd.cut(
+                    [target_data[first_col].iloc[0]], 
+                    bins=market_cap_bins, 
+                    labels=market_cap_labels
+                )[0]
                 
-                # Create frame with annotation
-                frame = go.Frame(
-                    data=frame_data,
-                    name=str(year),
-                    layout=dict(
+                # Calculate initial marker height
+                first_grouped = df.groupby('temp_bucket', observed=True).agg({
+                    'Fund AUM': 'sum',
+                    'Fund': 'count'
+                }).reset_index()
+                
+                bucket_data = first_grouped[first_grouped['temp_bucket'] == target_bucket]
+                if not bucket_data.empty:
+                    bar_height = float(bucket_data['Fund AUM'].iloc[0]) / 1e9
+                    marker_height = float(bar_height * 1.1)
+                    
+                    fig.update_layout(
                         annotations=[dict(
                             x=target_bucket,
                             y=marker_height,
-                            text=f"<b>{target_fund}</b><br>Market Cap: ${target_data[col].iloc[0]:.1f}B",
+                            text=f"<b>{target_fund}</b><br>Market Cap: ${target_data[first_col].iloc[0]:.1f}B",
                             showarrow=True,
                             arrowhead=2,
                             arrowsize=1,
@@ -466,60 +516,14 @@ def create_market_cap_animation(df, target_fund):
                             yshift=20
                         )]
                     )
-                )
-            else:
-                frame = go.Frame(data=frame_data, name=str(year))
-            
-            frames.append(frame)
-            
-        # Add initial data and annotation
-        if frames:
-            for trace in frames[0].data:
-                fig.add_trace(trace)
-            
-            # Add initial annotation if target fund exists
-            if target_fund in df['Fund'].values:
-                first_col = market_cap_cols[0][0]  # Get first year's column
-                target_data = df[df['Fund'] == target_fund]
-                target_bucket = pd.cut(
-                    [target_data[first_col].iloc[0]], 
-                    bins=market_cap_bins, 
-                    labels=market_cap_labels
-                )[0]
-                
-                # Calculate marker height for first frame
-                first_grouped = df.groupby('temp_bucket', observed=True).agg({
-                    'Fund AUM': 'sum',
-                    'Fund': 'count'
-                }).reset_index()
-                bar_height = first_grouped.loc[first_grouped['temp_bucket'] == target_bucket, 'Fund AUM'].iloc[0] / 1e9
-                marker_height = bar_height * 1.1
-                
-                fig.update_layout(
-                    annotations=[dict(
-                        x=target_bucket,
-                        y=marker_height,
-                        text=f"<b>{target_fund}</b><br>Market Cap: ${target_data[first_col].iloc[0]:.1f}B",
-                        showarrow=True,
-                        arrowhead=2,
-                        arrowsize=1,
-                        arrowwidth=2,
-                        arrowcolor='black',
-                        bgcolor='black',
-                        bordercolor='black',
-                        borderwidth=2,
-                        borderpad=4,
-                        font=dict(color='white', size=10),
-                        yshift=20
-                    )]
-                )
         
         # Get categories and fund count for title
         categories = ', '.join(df['Morningstar Category'].unique())
         total_funds = len(df['Fund'].unique())
         
-        max_y = max(frame.data[0].y for frame in frames)
-
+        # Calculate max y value for range
+        max_y = max(max(frame.data[0].y) for frame in frames)
+        
         # Update layout
         fig.update_layout(
             title={
@@ -530,7 +534,7 @@ def create_market_cap_animation(df, target_fund):
                 'xanchor': 'center',
                 'yanchor': 'top'
             },
-            xaxis_title="Weighted Average Market Cap",
+            xaxis_title="Market Cap Range",
             yaxis_title="Total AUM ($B)",
             yaxis=dict(
                 tickformat="$,.0f",
@@ -553,12 +557,16 @@ def create_market_cap_animation(df, target_fund):
             ),
             sliders=[{
                 'currentvalue': {'prefix': 'Year: '},
-                'steps': [{'args': [[str(year)]], 
+                'steps': [{'args': [[str(year)], {
+                            'frame': {'duration': 0, 'redraw': False},
+                            'mode': 'immediate',
+                            'transition': {'duration': 0}
+                        }], 
                           'label': str(year),
-                          'method': 'animate'} 
-                         for year in years],
-                'x': 0.1,
-                'len': 0.9
+                          'method': 'animate'} for year in years],
+                'x': 0.0,
+                'len': 0.9,
+               
             }]
         )
         
