@@ -281,44 +281,47 @@ def create_market_cap_bubble(df, target_fund):
     ))
     
     # Add target fund marker
-    target_data = df[df['Fund'] == target_fund]
+    target_data = df[df['Fund'] == target_fund].copy()
     if len(target_data) > 0:
         target_bucket = target_data['Market Cap Bucket'].iloc[0]
         target_market_cap = target_data['Market Cap ($B) 2024'].iloc[0]
-        bar_height = grouped[grouped['Market Cap Bucket'] == target_bucket]['Total AUM'].iloc[0]
         
-        # Add marker at 20% of bar height
-        marker_height = bar_height * 0.2 / 1000000  # Convert to billions
-        
-        fig.add_trace(go.Scatter(
-            x=[target_bucket],
-            y=[marker_height],
-            mode='markers',
-            name=target_fund,
-            marker=dict(
-                color='red',
-                size=6,
-                symbol='diamond'
-            ),
-            showlegend=True
-        ))
-        
-        # Add callout box
-        fig.add_annotation(
-            x=target_bucket,
-            y=marker_height,
-            text=f"<b>{target_fund}</b><br>Wtd. Avg. Market Cap: ${target_market_cap:.1f}B",
-            showarrow=True,
-            arrowhead=2,
-            arrowsize=1,
-            arrowwidth=2,
-            arrowcolor='black',
-            bgcolor='black',
-            bordercolor='black',
-            borderwidth=2,
-            borderpad=4,
-            font=dict(color='white', size=10)
-        )
+        # Find the corresponding bar height
+        bucket_data = grouped[grouped['Market Cap Bucket'] == target_bucket]
+        if not bucket_data.empty:
+            bar_height = bucket_data['Total AUM'].iloc[0]
+            marker_height = bar_height * 0.2 / 1000000  # Convert to billions
+            
+            # Add marker
+            fig.add_trace(go.Scatter(
+                x=[target_bucket],
+                y=[marker_height],
+                mode='markers',
+                name=target_fund,
+                marker=dict(
+                    color='red',
+                    size=10,
+                    symbol='diamond'
+                ),
+                showlegend=True
+            ))
+            
+            # Add callout box
+            fig.add_annotation(
+                x=target_bucket,
+                y=marker_height,
+                text=f"<b>{target_fund}</b><br>Wtd. Avg. Market Cap: ${target_market_cap:.1f}B",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=2,
+                arrowcolor='black',
+                bgcolor='black',
+                bordercolor='black',
+                borderwidth=2,
+                borderpad=4,
+                font=dict(color='white', size=10)
+            )
     
     # Update layout
     total_funds = len(df['Fund'].unique())
