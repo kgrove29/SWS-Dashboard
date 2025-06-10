@@ -17,7 +17,7 @@ st.set_page_config(page_title="SWS Peer Analysis", layout="wide")
 # Add title and description
 st.title("SWS Peer Analysis Dashboard")
 st.markdown("""
-This dashboard provides a comparative analysis of SWS Dividend Equity against peer funds.
+This dashboard provides a comparative analysis of SWS Growth Equity against peer funds.
 """)
 
 # Add filters in sidebar
@@ -65,8 +65,16 @@ if uploaded_file is not None:
         # Load data
         df = pd.read_csv(uploaded_file)
 
+<<<<<<< HEAD
         # Convert numeric columns
         numeric_columns = ['1YR', '3YR', '5YR', '7YR', 'SI Growth', 'SI Dividend', 'Fund AUM', 'Market Cap ($B) 2024']
+=======
+
+
+
+         # Convert numeric columns
+        numeric_columns = ['1YR', '3YR', '5YR','7YR', 'SI', 'Fund AUM', 'Market Cap ($B) 2024']
+>>>>>>> c5d5f8c256dad475e3c2d23eb574523a4ba84183
         for col in numeric_columns:
             if col not in df.columns:
                 continue
@@ -74,15 +82,25 @@ if uploaded_file is not None:
             if col == 'Fund AUM':
                 # Remove $ and commas, and any trailing spaces
                 df[col] = df[col].str.strip().str.replace('$', '').str.replace(',', '').astype(float)
+<<<<<<< HEAD
             elif col in ['1YR', '3YR', '5YR', '7YR', 'SI Growth', 'SI Dividend']:
                 # Remove % sign and convert to decimal, handling empty values
                 df[col] = df[col].replace('', pd.NA).str.rstrip('%').astype(float) 
+=======
+            elif col in ['1YR', '3YR', '5YR','7YR', 'SI']:
+                # Remove % sign and convert to decimal
+                df[col] = df[col].str.rstrip('%').astype(float) 
+>>>>>>> c5d5f8c256dad475e3c2d23eb574523a4ba84183
             else:
                 # For other numeric columns
                 df[col] = pd.to_numeric(df[col].str.replace(',', ''), errors='coerce')
 
             #If these are percentages in the CSV, convert to decimals
+<<<<<<< HEAD
             if col in ['1YR', '3YR', '5YR', '7YR', 'SI Growth', 'SI Dividend']:
+=======
+            if col in ['1YR', '3YR', '5YR','7YR', 'SI']:
+>>>>>>> c5d5f8c256dad475e3c2d23eb574523a4ba84183
                 df[col] = df[col] / 100
 
         # Select appropriate SI column based on target fund
@@ -154,7 +172,11 @@ else:
     st.markdown("""
     **Required CSV Format:**
     ```
+<<<<<<< HEAD
     Fund,Fund AUM,Market Cap ($B),1YR,3YR,5YR,7YR,SI Growth,SI Dividend,Morningstar Category
+=======
+    Fund,Fund AUM,Market Cap ($B),1YR,3YR,5YR,7YR,SI,Morningstar Category
+>>>>>>> c5d5f8c256dad475e3c2d23eb574523a4ba84183
     ...
     ```
     """)
