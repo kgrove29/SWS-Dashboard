@@ -20,6 +20,9 @@ st.markdown("""
 This dashboard provides a comparative analysis of SWS SMA strategies against peer funds.
 """)
 
+# Add logo to sidebar
+st.sidebar.image("Logo Lockup.png", width=200)
+
 # Add filters in sidebar
 st.sidebar.header("Filters")
 

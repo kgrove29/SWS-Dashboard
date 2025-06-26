@@ -9,6 +9,37 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import streamlit as st
+import base64
+
+def get_logo_base64():
+    """Convert logo to base64 for embedding in Plotly charts."""
+    try:
+        with open("Logo Lockup.png", "rb") as f:
+            img_bytes = f.read()
+        encoded = base64.b64encode(img_bytes).decode()
+        return f"data:image/png;base64,{encoded}"
+    except:
+        return None
+
+def add_custom_title_and_logo(fig, title_text, subtitle_text):
+    """Add logo to chart that will be included in downloads."""
+    logo_base64 = get_logo_base64()
+    
+    # Add logo positioned next to the built-in title
+    if logo_base64:
+        fig.add_layout_image(
+            dict(
+                source=logo_base64,
+                xref="paper", yref="paper",
+                x=0.01, y=1.10,  # Position higher up with title
+                sizex=0.12, sizey=0.12,
+                xanchor="left", yanchor="bottom",
+                opacity=1.0,
+                layer="above"
+            )
+        )
+    
+    return fig
 
 def create_box_whisker_plot_v2(df, target_fund):
     """Create box and whisker plot using Plotly."""
@@ -137,7 +168,7 @@ def create_box_whisker_plot_v2(df, target_fund):
         showlegend=True
     ))
 
-    # Update layout
+    # Update layout - RESTORE built-in title
     total_funds = len(df['Fund'].unique())
     categories = ', '.join(df['Morningstar Category'].unique())
     
@@ -183,6 +214,11 @@ def create_box_whisker_plot_v2(df, target_fund):
     # Add horizontal grid lines only
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgrey')
+    
+    # Add logo next to title
+    title_text = f'Performance Distribution: {target_fund} vs {categories} Funds'
+    subtitle_text = f'Analysis includes {total_funds} funds'
+    fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
     
     return fig
 
@@ -323,7 +359,7 @@ def create_ratios_box_whisker_plot(df, target_fund):
         showlegend=True
     ), row=1, col=1)
 
-    # Update layout
+    # Update layout - RESTORE built-in title
     total_funds = len(df['Fund'].unique())
     categories = ', '.join(df['Morningstar Category'].unique())
     
@@ -364,6 +400,11 @@ def create_ratios_box_whisker_plot(df, target_fund):
             title_text="Ratio Value" if i == 1 else "",  # Only show y-axis title on first subplot
             row=1, col=i
         )
+    
+    # Add logo next to title
+    title_text = f'Risk-Adjusted Ratios: {target_fund} vs {categories} Funds'
+    subtitle_text = f'Analysis includes {total_funds} funds'
+    fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
     
     return fig
 
@@ -413,7 +454,7 @@ def create_risk_return_scatter(df, target_fund):
                           "<extra></extra>"
         ))
     
-    # Update layout
+    # Update layout - RESTORE built-in title
     total_funds = len(df['Fund'].unique())
     categories = ', '.join(df['Morningstar Category'].unique())
     
@@ -452,6 +493,11 @@ def create_risk_return_scatter(df, target_fund):
     
     fig.add_hline(y=median_return, line_dash="dash", line_color="gray", opacity=0.5)
     fig.add_vline(x=median_volatility, line_dash="dash", line_color="gray", opacity=0.5)
+    
+    # Add logo next to title
+    title_text = f'Risk-Return Analysis: {target_fund} vs {categories} Funds'
+    subtitle_text = f'Analysis includes {total_funds} funds'
+    fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
     
     return fig
 
@@ -734,7 +780,7 @@ def create_market_cap_animation(df, target_fund):
         # Calculate max y value for range
         max_y = max(max(frame.data[0].y) for frame in frames)
         
-        # Update layout
+        # Update layout - RESTORE built-in title
         fig.update_layout(
             title={
                 'text': f'Market Cap Distribution: {categories} Funds<br>' +
@@ -783,6 +829,11 @@ def create_market_cap_animation(df, target_fund):
         # Add horizontal grid lines only
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgrey')
+        
+        # Add logo next to title
+        title_text = f'Market Cap Distribution: {categories} Funds'
+        subtitle_text = f'Analysis includes {total_funds} funds'
+        fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
         
         fig.frames = frames
         return fig
