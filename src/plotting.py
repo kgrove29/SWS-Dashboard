@@ -12,7 +12,6 @@ import streamlit as st
 
 def create_box_whisker_plot_v2(df, target_fund):
     """Create box and whisker plot using Plotly."""
-    print(f"DEBUG: Creating box plot v2 for {target_fund}")
     # Define base periods
     base_periods = ['1YR', '3YR', '5YR']
     
@@ -190,8 +189,6 @@ def create_box_whisker_plot_v2(df, target_fund):
 
 def create_ratios_box_whisker_plot(df, target_fund):
     """Create box and whisker plot for financial ratios using Plotly with separate subplots."""
-    print(f"DEBUG: Creating ratios box plot for {target_fund}")
-    
     # Define ratios to compare
     ratios = ['Sharpe', 'Sortino', 'Treynor', 'Upside Capture']
     
