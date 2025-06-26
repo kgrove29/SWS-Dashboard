@@ -10,8 +10,9 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 
-def create_box_whisker_plot(df, target_fund):
+def create_box_whisker_plot_v2(df, target_fund):
     """Create box and whisker plot using Plotly."""
+    print(f"DEBUG: Creating box plot v2 for {target_fund}")
     # Define base periods
     base_periods = ['1YR', '3YR', '5YR']
     
@@ -29,14 +30,16 @@ def create_box_whisker_plot(df, target_fund):
         if period not in df.columns:
             continue
             
-        # Calculate percentiles
+        # Calculate percentiles and extremes
+        p_min = df[period].min()
         p05 = df[period].quantile(0.05)
         p25 = df[period].quantile(0.25)
         median = df[period].quantile(0.50)
         p75 = df[period].quantile(0.75)
         p95 = df[period].quantile(0.95)
+        p_max = df[period].max()
 
-        # Box plot trace
+        # Box plot trace - simplified with no hover
         fig.add_trace(go.Box(
             x=[period],
             q1=[p25],
@@ -52,7 +55,31 @@ def create_box_whisker_plot(df, target_fund):
             fillcolor='rgb(176, 224, 230)',
             orientation='v',
             name="Box 25th to 75th Percentile",
-            showlegend=True if period == '1YR' else False
+            showlegend=True if period == '1YR' else False,
+            hoverinfo='skip'
+        ))
+        
+        # Add invisible scatter point for custom hover at median position
+        fig.add_trace(go.Scatter(
+            x=[period],
+            y=[median],
+            mode='markers',
+            marker=dict(
+                color='rgba(0,0,0,0)',  # Invisible
+                size=60,  # Large hit area
+                line=dict(width=0)
+            ),
+            hovertemplate="<b>%{x}</b><br>" +
+                          f"Maximum: {p_max:.2%}<br>" +
+                          f"Upper Fence (95%): {p95:.2%}<br>" +
+                          f"Q3 (75%): {p75:.2%}<br>" +
+                          f"Median (50%): {median:.2%}<br>" +
+                          f"Q1 (25%): {p25:.2%}<br>" +
+                          f"Lower Fence (5%): {p05:.2%}<br>" +
+                          f"Minimum: {p_min:.2%}<br>" +
+                          "<extra></extra>",
+            showlegend=False,
+            name=""
         ))
         
         # Add target fund callout box for each period
@@ -157,6 +184,189 @@ def create_box_whisker_plot(df, target_fund):
     # Add horizontal grid lines only
     fig.update_xaxes(showgrid=False)
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgrey')
+    
+    return fig
+
+
+def create_ratios_box_whisker_plot(df, target_fund):
+    """Create box and whisker plot for financial ratios using Plotly with separate subplots."""
+    print(f"DEBUG: Creating ratios box plot for {target_fund}")
+    
+    # Define ratios to compare
+    ratios = ['Sharpe', 'Sortino', 'Treynor', 'Upside Capture']
+    
+    from plotly.subplots import make_subplots
+    
+    # Create subplots with separate y-axes
+    fig = make_subplots(
+        rows=1, cols=4,
+        subplot_titles=ratios,
+        shared_xaxes=False,
+        shared_yaxes=False,
+        horizontal_spacing=0.08
+    )
+    
+    # Add box plots for each ratio
+    for i, ratio in enumerate(ratios, 1):
+        # Skip if ratio doesn't exist in dataframe
+        if ratio not in df.columns:
+            continue
+            
+        # Calculate percentiles and extremes
+        p_min = df[ratio].min()
+        p05 = df[ratio].quantile(0.05)
+        p25 = df[ratio].quantile(0.25)
+        median = df[ratio].quantile(0.50)
+        p75 = df[ratio].quantile(0.75)
+        p95 = df[ratio].quantile(0.95)
+        p_max = df[ratio].max()
+
+        # Box plot trace - simplified with no hover
+        fig.add_trace(go.Box(
+            x=[ratio],
+            q1=[p25],
+            median=[median],
+            q3=[p75],
+            lowerfence=[p05],
+            upperfence=[p95],
+            boxpoints=False,
+            marker_color='rgb(176, 224, 230)',
+            line_color='black',
+            whiskerwidth=0.2,
+            width=0.6,
+            fillcolor='rgb(176, 224, 230)',
+            orientation='v',
+            name="Box 25th to 75th Percentile",
+            showlegend=True if ratio == 'Sharpe' else False,
+            hoverinfo='skip'
+        ), row=1, col=i)
+        
+        # All ratios should be formatted as decimal numbers
+        # Upside Capture as 1.13 (meaning 113% capture), not as percentage
+        format_str = ".2f"
+        
+        # Add invisible scatter point for custom hover at median position
+        fig.add_trace(go.Scatter(
+            x=[ratio],
+            y=[median],
+            mode='markers',
+            marker=dict(
+                color='rgba(0,0,0,0)',  # Invisible
+                size=60,  # Large hit area
+                line=dict(width=0)
+            ),
+            hovertemplate="<b>%{x}</b><br>" +
+                          f"Maximum: {p_max:{format_str}}<br>" +
+                          f"Upper Fence (95%): {p95:{format_str}}<br>" +
+                          f"Q3 (75%): {p75:{format_str}}<br>" +
+                          f"Median (50%): {median:{format_str}}<br>" +
+                          f"Q1 (25%): {p25:{format_str}}<br>" +
+                          f"Lower Fence (5%): {p05:{format_str}}<br>" +
+                          f"Minimum: {p_min:{format_str}}<br>" +
+                          "<extra></extra>",
+            showlegend=False,
+            name=""
+        ), row=1, col=i)
+        
+        # Add target fund callout box for each ratio
+        target_data = df[df['Fund'] == target_fund]
+        if len(target_data) > 0:
+            target_value = target_data[ratio].iloc[0]
+            rank = 100 - (df[ratio].le(target_value).mean() * 100)
+            
+            fig.add_annotation(
+                x=ratio,
+                y=target_value + (p_max - p_min) * 0.05,  # Offset based on range
+                text=f"<b>{target_fund}</b><br>{ratio}: {target_value:{format_str}}<br>Rank: {rank:.0f}%ile",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=2,
+                arrowcolor='black',
+                bgcolor='black',
+                bordercolor='black',
+                borderwidth=2,
+                borderpad=4,
+                font=dict(color='white', size=10),
+                xref=f"x{i}",
+                yref=f"y{i}"
+            )
+
+            # Add marker for target fund
+            fig.add_trace(go.Scatter(
+                x=[ratio],
+                y=[target_value],
+                mode='markers',
+                name=target_fund,
+                marker=dict(
+                    color='red',
+                    size=10,
+                    symbol='diamond'
+                ),
+                showlegend=True if ratio == 'Sharpe' else False
+            ), row=1, col=i)
+
+    # Add whiskers to legend (on first subplot)
+    fig.add_trace(go.Scatter(
+        x=['Sharpe', 'Sharpe'],
+        y=[df['Sharpe'].quantile(0.05), df['Sharpe'].quantile(0.95)],
+        mode='lines',
+        line=dict(color='black', width=.2),
+        name="Whiskers (5%-95%)", 
+        showlegend=True
+    ), row=1, col=1)
+    
+    # Add median to legend (on first subplot)
+    fig.add_trace(go.Scatter(
+        x=['Sharpe', 'Sharpe'],
+        y=[df['Sharpe'].quantile(0.50), df['Sharpe'].quantile(0.50)],
+        mode='lines',
+        line=dict(color='black', width=2),
+        name="Median",
+        showlegend=True
+    ), row=1, col=1)
+
+    # Update layout
+    total_funds = len(df['Fund'].unique())
+    categories = ', '.join(df['Morningstar Category'].unique())
+    
+    fig.update_layout(
+        title={
+            'text': f'Risk-Adjusted Ratios: {target_fund} vs {categories} Funds<br>' +
+                   f'<sup>Analysis includes {total_funds} funds</sup>',
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        showlegend=True,
+        height=600,
+        template='plotly_white',
+        legend=dict(
+            x=1,
+            y=1,
+            bgcolor='rgba(255, 255, 255, 0.8)',
+            bordercolor='rgba(0, 0, 0, 0.2)',
+            borderwidth=1
+        ),
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    
+    # Update individual subplot axes
+    for i in range(1, 5):
+        fig.update_xaxes(
+            showgrid=False,
+            showticklabels=False,  # Hide x-axis labels since we have subplot titles
+            row=1, col=i
+        )
+        fig.update_yaxes(
+            showgrid=True, 
+            gridwidth=1, 
+            gridcolor='lightgrey',
+            title_text="Ratio Value" if i == 1 else "",  # Only show y-axis title on first subplot
+            row=1, col=i
+        )
     
     return fig
 
