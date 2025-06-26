@@ -147,14 +147,14 @@ if uploaded_file is not None:
                 create_risk_return_scatter(df, target_fund),
                 use_container_width=True
             )
-        
+            
         # Market Cap Animation Tab
         with tab3:
             st.plotly_chart(
                 create_market_cap_animation(df, target_fund),
                 use_container_width=True
             )
-            
+        
         # Risk-Adjusted Ratios Tab
         with tab4:
             st.plotly_chart(
