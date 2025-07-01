@@ -37,9 +37,15 @@ venv.bak/
 .idea/
 *.swp
 *.swo
+.cursor/
 
 # Streamlit
 .streamlit/
+
+# Data files (may contain sensitive information)
+*.xlsx
+*.xls
+*.csv
 
 # OS files
 .DS_Store

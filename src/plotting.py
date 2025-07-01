@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import base64
+from datetime import datetime
 
 def get_logo_base64():
     """Convert logo to base64 for embedding in Plotly charts."""
@@ -366,7 +367,7 @@ def create_ratios_box_whisker_plot(df, target_fund):
     fig.update_layout(
         title={
             'text': f'Risk-Adjusted Ratios: {target_fund} vs {categories} Funds<br>' +
-                   f'<sup>Analysis includes {total_funds} funds</sup>',
+                   f'<sup>Analysis includes {total_funds} funds since inception</sup>',
             'y':0.95,
             'x':0.5,
             'xanchor': 'center',
@@ -498,122 +499,6 @@ def create_risk_return_scatter(df, target_fund):
     title_text = f'Risk-Return Analysis: {target_fund} vs {categories} Funds'
     subtitle_text = f'Analysis includes {total_funds} funds'
     fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
-    
-    return fig
-
-def create_market_cap_bubble(df, target_fund):
-    """Create market cap distribution chart using Plotly."""
-    
-    # Create Market Cap buckets
-    df['Market Cap Bucket'] = pd.cut(
-        df['Market Cap ($B) 2024'],
-        bins=[0, 250, 500, 1000, float('inf')],
-        labels=['$0-250B', '$250-500B', '$500-1T', '$1T+']
-    )
-    
-    # Calculate metrics for each bucket
-    grouped = df.groupby('Market Cap Bucket').agg({
-        'Fund AUM': ['sum', 'count']
-    }).reset_index()
-    grouped.columns = ['Market Cap Bucket', 'Total AUM', 'Fund Count']
-    
-    fig = go.Figure()
-    
-    # Add bar chart for AUM
-    fig.add_trace(go.Bar(
-        x=grouped['Market Cap Bucket'],
-        y=grouped['Total AUM'] / 1000000,  # Convert to billions
-        name='Total AUM',
-        marker_color='lightblue',
-        opacity=0.7,
-        hovertemplate="<b>%{x}</b><br>" +
-                      "Total AUM: $%{y:,.0f}B<br>" +
-                      "Fund Count: %{customdata}<br>" +
-                      "<extra></extra>",
-        customdata=grouped['Fund Count']
-    ))
-    
-    # Add target fund marker
-    target_data = df[df['Fund'] == target_fund].copy()
-    if len(target_data) > 0:
-        target_bucket = target_data['Market Cap Bucket'].iloc[0]
-        target_market_cap = target_data['Market Cap ($B) 2024'].iloc[0]
-        
-        # Find the corresponding bar height
-        bucket_data = grouped[grouped['Market Cap Bucket'] == target_bucket]
-        if not bucket_data.empty:
-            bar_height = bucket_data['Total AUM'].iloc[0]
-            marker_height = bar_height * 0.2 / 1000000  # Convert to billions
-            
-            # Add marker
-            fig.add_trace(go.Scatter(
-                x=[target_bucket],
-                y=[marker_height],
-                mode='markers',
-                name=target_fund,
-                marker=dict(
-                    color='red',
-                    size=10,
-                    symbol='diamond'
-                ),
-                showlegend=True
-            ))
-            
-            # Add callout box
-            fig.add_annotation(
-                x=target_bucket,
-                y=marker_height,
-                text=f"<b>{target_fund}</b><br>Wtd. Avg. Market Cap: ${target_market_cap:.1f}B",
-                showarrow=True,
-                arrowhead=2,
-                arrowsize=1,
-                arrowwidth=2,
-                arrowcolor='black',
-                bgcolor='black',
-                bordercolor='black',
-                borderwidth=2,
-                borderpad=4,
-                font=dict(color='white', size=10)
-            )
-    
-    # Update layout
-    total_funds = len(df['Fund'].unique())
-    categories = ', '.join(df['Morningstar Category'].unique())
-    
-    fig.update_layout(
-        title={
-            'text': f'Market Cap Distribution: {categories} Funds<br>' +
-                   f'<sup>Analysis includes {total_funds} funds</sup>',
-            'y':0.95,
-            'x':0.5,
-            'xanchor': 'center',
-            'yanchor': 'top'
-        },
-        xaxis_title="Weighted Average Market Cap",
-        yaxis=dict(
-            title="Total AUM ($B)",
-            tickformat=",.0f",
-            gridcolor='lightgrey',
-            zerolinecolor='lightgrey',
-            zeroline=True
-        ),
-        showlegend=True,
-        height=600,
-        template='plotly_white',
-        legend=dict(
-            x=1,
-            y=1,
-            bgcolor='rgba(255, 255, 255, 0.8)',
-            bordercolor='rgba(0, 0, 0, 0.2)',
-            borderwidth=1
-        ),
-        plot_bgcolor='white',
-        paper_bgcolor='white'
-    )
-    
-    # Add horizontal grid lines only
-    fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgrey')
     
     return fig
 
@@ -848,5 +733,269 @@ def create_market_cap_animation(df, target_fund):
             x=0.5,
             y=0.5,
             showarrow=False
+        )
+        return fig
+
+def create_clean_cumulative_returns_chart(uploaded_file, target_fund):
+    """
+    Create cumulative returns chart using the dedicated Monthly returns worksheet.
+    
+    This is a clean implementation that expects:
+    - Monthly returns in a separate worksheet named 'Monthly returns'
+    - Fund names in column 0
+    - Monthly returns in datetime-named columns (already in decimal format)
+    """
+    try:
+        # Read the Monthly returns sheet directly
+        monthly_df = pd.read_excel(uploaded_file, sheet_name='Monthly returns')
+        
+        # Find the target fund
+        target_data = monthly_df[monthly_df['Fund'] == target_fund]
+        if target_data.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Fund '{target_fund}' not found in Monthly returns sheet",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16)
+            )
+            return fig
+        
+        target_row = target_data.iloc[0]
+        
+        # Get all date columns (everything except 'Fund')
+        date_columns = [col for col in monthly_df.columns if col != 'Fund']
+        
+        # Extract monthly returns and dates
+        returns = []
+        dates = []
+        
+        for date_col in date_columns:
+            monthly_return = target_row[date_col]
+            
+            # Skip NaN values (fund hadn't started yet)
+            if pd.notna(monthly_return):
+                returns.append(float(monthly_return))
+                dates.append(date_col)
+        
+        if not returns:
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"No valid returns found for {target_fund}",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16)
+            )
+            return fig
+        
+        # Calculate cumulative returns: (1 + r1) * (1 + r2) * ... - 1
+        cumulative_values = [1.0]  # Start at $1.00
+        running_value = 1.0
+        
+        for monthly_return in returns:
+            running_value = running_value * (1.0 + monthly_return)
+            cumulative_values.append(running_value)
+        
+        # Convert to percentage returns for display
+        cumulative_returns = [(value - 1.0) for value in cumulative_values]
+        
+        # Create date series for chart - start at beginning of inception month, then use month-end dates
+        inception_month_start = datetime(dates[0].year, dates[0].month, 1)
+        chart_dates = [inception_month_start] + dates
+        
+        final_return = cumulative_values[-1] - 1.0
+        
+        # Create the chart
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x=chart_dates,
+            y=cumulative_returns,
+            mode='lines+markers',
+            name=target_fund,
+            line=dict(width=3, color='red'),
+            marker=dict(size=4, color='red'),
+            hovertemplate="<b>%{fullData.name}</b><br>" +
+                         "Date: %{x}<br>" +
+                         "Cumulative Return: %{y:.1%}<br>" +
+                         "<extra></extra>"
+        ))
+        
+        # Update layout
+        inception_display = inception_month_start.strftime('%B %Y')
+        
+        fig.update_layout(
+            title={
+                'text': f'Cumulative Returns: {target_fund}<br>' +
+                       f'<sup>Since {inception_display} | Total Return: {final_return:.1%}</sup>',
+                'y':0.95,
+                'x':0.5,
+                'xanchor': 'center',
+                'yanchor': 'top'
+            },
+            xaxis_title="Date",
+            yaxis_title="Cumulative Return",
+            yaxis=dict(
+                tickformat='.1%',
+                gridcolor='lightgrey',
+                zerolinecolor='lightgrey',
+                zeroline=True
+            ),
+            xaxis=dict(
+                gridcolor='lightgrey',
+                showgrid=True
+            ),
+            template='plotly_white',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            height=600,
+            showlegend=True
+        )
+        
+        # Add logo next to title
+        title_text = f'Cumulative Returns: {target_fund}'
+        subtitle_text = f'Since {inception_display}'
+        fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
+        
+        return fig
+        
+    except Exception as e:
+        fig = go.Figure()
+        fig.add_annotation(
+            text=f"Error: {str(e)}",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=16)
+        )
+        return fig
+
+def create_clean_rolling_returns_chart(uploaded_file, target_fund, window_months=12):
+    """
+    Create rolling returns chart using the dedicated Monthly returns worksheet.
+    
+    This is a clean implementation that calculates annualized rolling returns
+    over the specified window (default 12 months).
+    """
+    try:
+        # Read the Monthly returns sheet directly
+        monthly_df = pd.read_excel(uploaded_file, sheet_name='Monthly returns')
+        
+        # Find the target fund
+        target_data = monthly_df[monthly_df['Fund'] == target_fund]
+        if target_data.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Fund '{target_fund}' not found in Monthly returns sheet",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16)
+            )
+            return fig
+        
+        target_row = target_data.iloc[0]
+        
+        # Get all date columns (everything except 'Fund')
+        date_columns = [col for col in monthly_df.columns if col != 'Fund']
+        
+        # Extract monthly returns and dates (skip NaN values)
+        returns = []
+        dates = []
+        
+        for date_col in date_columns:
+            monthly_return = target_row[date_col]
+            if pd.notna(monthly_return):
+                returns.append(float(monthly_return))
+                dates.append(date_col)
+        
+        if len(returns) < window_months:
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Insufficient data for {window_months}-month rolling returns",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False,
+                font=dict(size=16)
+            )
+            return fig
+        
+        # Calculate rolling annualized returns
+        rolling_returns = []
+        rolling_dates = []
+        
+        for i in range(window_months - 1, len(returns)):
+            # Get window of returns
+            window_returns = returns[i - window_months + 1:i + 1]
+            
+            # Calculate compound return for the window
+            compound_return = 1.0
+            for monthly_return in window_returns:
+                compound_return = compound_return * (1.0 + monthly_return)
+            
+            # Annualize the return
+            annualized_return = compound_return ** (12.0 / window_months) - 1.0
+            
+            rolling_returns.append(annualized_return)
+            rolling_dates.append(dates[i])
+        
+        # Create the chart
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x=rolling_dates,
+            y=rolling_returns,
+            mode='lines+markers',
+            name=target_fund,
+            line=dict(width=3, color='red'),
+            marker=dict(size=4, color='red'),
+            hovertemplate="<b>%{fullData.name}</b><br>" +
+                         "Date: %{x}<br>" +
+                         f"{window_months}-Month Annualized Return: %{{y:.1%}}<br>" +
+                         "<extra></extra>"
+        ))
+        
+        # Update layout
+        inception_display = dates[0].strftime('%B %Y')
+        
+        fig.update_layout(
+            title={
+                'text': f'{window_months}-Month Rolling Returns: {target_fund}<br>' +
+                       f'<sup>Annualized rolling performance since {inception_display}</sup>',
+                'y':0.95,
+                'x':0.5,
+                'xanchor': 'center',
+                'yanchor': 'top'
+            },
+            xaxis_title="Date",
+            yaxis_title=f"{window_months}-Month Annualized Return",
+            yaxis=dict(
+                tickformat='.1%',
+                gridcolor='lightgrey',
+                zerolinecolor='lightgrey',
+                zeroline=True
+            ),
+            xaxis=dict(
+                gridcolor='lightgrey',
+                showgrid=True
+            ),
+            template='plotly_white',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            height=600,
+            showlegend=True
+        )
+        
+        # Add logo next to title
+        title_text = f'{window_months}-Month Rolling Returns: {target_fund}'
+        subtitle_text = f'Annualized rolling performance since {inception_display}'
+        fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
+        
+        return fig
+        
+    except Exception as e:
+        fig = go.Figure()
+        fig.add_annotation(
+            text=f"Error: {str(e)}",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=16)
         )
         return fig
