@@ -171,11 +171,21 @@ def create_box_whisker_plot_v2(df, target_fund):
 
     # Update layout - RESTORE built-in title
     total_funds = len(df['Fund'].unique())
-    categories = ', '.join(df['Morningstar Category'].unique())
+    
+    # Use original category selection for title
+    category_for_title = df.attrs.get('category_for_title', 'All')
+    if category_for_title == 'All':
+        categories_display = "All"
+    elif category_for_title == 'Large Growth and Large Blend':
+        categories_display = "Large Growth, Large Blend"
+    elif category_for_title == 'Large Blend and Large Value':
+        categories_display = "Large Blend, Large Value"
+    else:
+        categories_display = category_for_title
     
     fig.update_layout(
         title={
-            'text': f'Performance Distribution: {target_fund} vs {categories} Funds<br>' +
+            'text': f'Performance Distribution: {target_fund} vs {categories_display} Funds<br>' +
                    f'<sup>Analysis includes {total_funds} funds</sup>',
             'y':0.95,
             'x':0.5,
@@ -217,7 +227,7 @@ def create_box_whisker_plot_v2(df, target_fund):
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgrey')
     
     # Add logo next to title
-    title_text = f'Performance Distribution: {target_fund} vs {categories} Funds'
+    title_text = f'Performance Distribution: {target_fund} vs {categories_display} Funds'
     subtitle_text = f'Analysis includes {total_funds} funds'
     fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
     
@@ -362,11 +372,21 @@ def create_ratios_box_whisker_plot(df, target_fund):
 
     # Update layout - RESTORE built-in title
     total_funds = len(df['Fund'].unique())
-    categories = ', '.join(df['Morningstar Category'].unique())
+    
+    # Use original category selection for title
+    category_for_title = df.attrs.get('category_for_title', 'All')
+    if category_for_title == 'All':
+        categories_display = "All"
+    elif category_for_title == 'Large Growth and Large Blend':
+        categories_display = "Large Growth, Large Blend"
+    elif category_for_title == 'Large Blend and Large Value':
+        categories_display = "Large Blend, Large Value"
+    else:
+        categories_display = category_for_title
     
     fig.update_layout(
         title={
-            'text': f'Risk-Adjusted Ratios: {target_fund} vs {categories} Funds<br>' +
+            'text': f'Risk-Adjusted Ratios: {target_fund} vs {categories_display} Funds<br>' +
                    f'<sup>Analysis includes {total_funds} funds since inception</sup>',
             'y':0.95,
             'x':0.5,
@@ -403,14 +423,14 @@ def create_ratios_box_whisker_plot(df, target_fund):
         )
     
     # Add logo next to title
-    title_text = f'Risk-Adjusted Ratios: {target_fund} vs {categories} Funds'
+    title_text = f'Risk-Adjusted Ratios: {target_fund} vs {categories_display} Funds'
     subtitle_text = f'Analysis includes {total_funds} funds'
     fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
     
     return fig
 
 
-def create_risk_return_scatter(df, target_fund):
+def create_risk_return_scatter(df, target_fund, show_regression=False):
     """Create risk-return scatter plot using Plotly."""
     
     # Split data into target fund and peers
@@ -439,11 +459,14 @@ def create_risk_return_scatter(df, target_fund):
     
     # Add target fund marker
     if len(target_data) > 0:
+        target_return = target_data['SI'].iloc[0]
+        target_vol = target_data['Volatility'].iloc[0]
+        
         fig.add_trace(go.Scatter(
             x=target_data['Volatility'],
             y=target_data['SI'],
             mode='markers',
-            name=target_fund,
+            name=f"{target_fund} (Return: {target_return:.1%}, Vol: {target_vol:.1%})",
             marker=dict(
                 color='red',
                 size=12,
@@ -457,11 +480,21 @@ def create_risk_return_scatter(df, target_fund):
     
     # Update layout - RESTORE built-in title
     total_funds = len(df['Fund'].unique())
-    categories = ', '.join(df['Morningstar Category'].unique())
+    
+    # Use original category selection for title
+    category_for_title = df.attrs.get('category_for_title', 'All')
+    if category_for_title == 'All':
+        categories_display = "All"
+    elif category_for_title == 'Large Growth and Large Blend':
+        categories_display = "Large Growth, Large Blend"
+    elif category_for_title == 'Large Blend and Large Value':
+        categories_display = "Large Blend, Large Value"
+    else:
+        categories_display = category_for_title
     
     fig.update_layout(
         title={
-            'text': f'Risk-Return Analysis: {target_fund} vs {categories} Funds<br>' +
+            'text': f'Risk-Return Analysis: {target_fund} vs {categories_display} Funds<br>' +
                    f'<sup>Analysis includes {total_funds} funds</sup>',
             'y':0.95,
             'x':0.5,
@@ -488,15 +521,50 @@ def create_risk_return_scatter(df, target_fund):
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='LightGray')
     fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='LightGray')
     
-    # Add quadrant lines (optional)
+    # Calculate and add regression line (if enabled)
+    if show_regression:
+        valid_data = df.dropna(subset=['Volatility', 'SI'])
+        if len(valid_data) > 1:
+            x_vals = valid_data['Volatility'].values
+            y_vals = valid_data['SI'].values
+            
+            # Calculate regression coefficients
+            coeffs = np.polyfit(x_vals, y_vals, 1)
+            slope, intercept = coeffs
+            
+            # Create regression line points
+            x_min, x_max = x_vals.min(), x_vals.max()
+            x_regression = np.linspace(x_min, x_max, 100)
+            y_regression = slope * x_regression + intercept
+            
+            # Add regression line
+            fig.add_trace(go.Scatter(
+                x=x_regression,
+                y=y_regression,
+                mode='lines',
+                name=f"Regression Line (R² = {np.corrcoef(x_vals, y_vals)[0,1]**2:.3f})",
+                line=dict(color='lightgrey', width=2, dash='dot'),
+                showlegend=True
+            ))
+    
+    # Add quadrant lines with legend entries
     median_volatility = df['Volatility'].median()
     median_return = df['SI'].median()
     
-    fig.add_hline(y=median_return, line_dash="dash", line_color="gray", opacity=0.5)
-    fig.add_vline(x=median_volatility, line_dash="dash", line_color="gray", opacity=0.5)
+    fig.add_hline(y=median_return, line_dash="dash", line_color="darkgray", line_width=2, opacity=0.8)
+    fig.add_vline(x=median_volatility, line_dash="dash", line_color="darkgray", line_width=2, opacity=0.8)
+    
+    # Add invisible trace for median lines legend entry
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode='lines',
+        line=dict(color='darkgray', width=2, dash='dash'),
+        name=f"Median Lines (Return: {median_return:.1%}, Vol: {median_volatility:.1%})",
+        showlegend=True
+    ))
     
     # Add logo next to title
-    title_text = f'Risk-Return Analysis: {target_fund} vs {categories} Funds'
+    title_text = f'Risk-Return Analysis: {target_fund} vs {categories_display} Funds'
     subtitle_text = f'Analysis includes {total_funds} funds'
     fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
     
@@ -659,7 +727,17 @@ def create_market_cap_animation(df, target_fund):
                     )
         
         # Get categories and fund count for title
-        categories = ', '.join(df['Morningstar Category'].unique())
+        # Use original category selection for title
+        category_for_title = df.attrs.get('category_for_title', 'All')
+        if category_for_title == 'All':
+            categories_display = "All"
+        elif category_for_title == 'Large Growth and Large Blend':
+            categories_display = "Large Growth, Large Blend"
+        elif category_for_title == 'Large Blend and Large Value':
+            categories_display = "Large Blend, Large Value"
+        else:
+            categories_display = category_for_title
+        
         total_funds = len(df['Fund'].unique())
         
         # Calculate max y value for range
@@ -668,7 +746,7 @@ def create_market_cap_animation(df, target_fund):
         # Update layout - RESTORE built-in title
         fig.update_layout(
             title={
-                'text': f'Market Cap Distribution: {categories} Funds<br>' +
+                'text': f'Market Cap Distribution: {categories_display} Funds<br>' +
                        f'<sup>Analysis includes {total_funds} funds</sup>',
                 'y':0.95,
                 'x':0.5,
@@ -716,7 +794,7 @@ def create_market_cap_animation(df, target_fund):
         fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='lightgrey')
         
         # Add logo next to title
-        title_text = f'Market Cap Distribution: {categories} Funds'
+        title_text = f'Market Cap Distribution: {categories_display} Funds'
         subtitle_text = f'Analysis includes {total_funds} funds'
         fig = add_custom_title_and_logo(fig, title_text, subtitle_text)
         
@@ -939,26 +1017,90 @@ def create_clean_rolling_returns_chart(uploaded_file, target_fund, window_months
         # Create the chart
         fig = go.Figure()
         
+        # Add prominent zero line first
+        fig.add_hline(
+            y=0, 
+            line_dash="solid", 
+            line_color="black", 
+            line_width=2,
+            opacity=1.0
+        )
+        
+        # Add invisible zero line trace for fill reference
+        fig.add_trace(go.Scatter(
+            x=rolling_dates,
+            y=[0] * len(rolling_dates),
+            mode='lines',
+            line=dict(width=0),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+        
+        # Create arrays for positive and negative fills
+        positive_returns = [max(0, ret) for ret in rolling_returns]
+        negative_returns = [min(0, ret) for ret in rolling_returns]
+        
+        # Add positive fill (green)
+        fig.add_trace(go.Scatter(
+            x=rolling_dates,
+            y=positive_returns,
+            mode='lines',
+            line=dict(width=0),
+            fill='tonexty',
+            fillcolor='rgba(46, 204, 113, 0.3)',
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+        
+        # Add negative fill (red) 
+        fig.add_trace(go.Scatter(
+            x=rolling_dates,
+            y=negative_returns,
+            mode='lines',
+            line=dict(width=0),
+            fill='tonexty',
+            fillcolor='rgba(255, 182, 193, 0.3)',
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+        
+        # Add the main data line on top
         fig.add_trace(go.Scatter(
             x=rolling_dates,
             y=rolling_returns,
             mode='lines+markers',
             name=target_fund,
-            line=dict(width=3, color='red'),
-            marker=dict(size=4, color='red'),
+            line=dict(width=3, color='black'),
+            marker=dict(size=4, color='black'),
             hovertemplate="<b>%{fullData.name}</b><br>" +
                          "Date: %{x}<br>" +
                          f"{window_months}-Month Annualized Return: %{{y:.1%}}<br>" +
                          "<extra></extra>"
         ))
         
+        # Calculate percentage of time with positive returns
+        positive_periods = sum(1 for ret in rolling_returns if ret > 0)
+        total_periods = len(rolling_returns)
+        positive_percentage = (positive_periods / total_periods) * 100 if total_periods > 0 else 0
+        
+        # Find min and max values for callouts
+        if rolling_returns:
+            min_return = min(rolling_returns)
+            max_return = max(rolling_returns)
+            min_index = rolling_returns.index(min_return)
+            max_index = rolling_returns.index(max_return)
+            min_date = rolling_dates[min_index]
+            max_date = rolling_dates[max_index]
+        
         # Update layout
         inception_display = dates[0].strftime('%B %Y')
+        period_years = window_months / 12
         
         fig.update_layout(
             title={
                 'text': f'{window_months}-Month Rolling Returns: {target_fund}<br>' +
-                       f'<sup>Annualized rolling performance since {inception_display}</sup>',
+                       f'<sup>Annualized rolling performance since {inception_display} | ' +
+                       f'{positive_percentage:.1f}% of {period_years:.0f}-year rolling periods with positive returns</sup>',
                 'y':0.95,
                 'x':0.5,
                 'xanchor': 'center',
@@ -982,6 +1124,44 @@ def create_clean_rolling_returns_chart(uploaded_file, target_fund, window_months
             height=600,
             showlegend=True
         )
+        
+        # Add min and max callouts
+        if rolling_returns:
+            # Add max callout (green)
+            fig.add_annotation(
+                x=max_date,
+                y=max_return,
+                text=f"<b>Max- {period_years:.0f} year annualized return</b><br>{max_return:.1%}<br>{max_date.strftime('%b %Y')}",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=2,
+                arrowcolor='green',
+                bgcolor='green',
+                bordercolor='green',
+                borderwidth=2,
+                borderpad=4,
+                font=dict(color='white', size=9),
+                yshift=15
+            )
+            
+            # Add min callout (red)
+            fig.add_annotation(
+                x=min_date,
+                y=min_return,
+                text=f"<b>Min- {period_years:.0f} year annualized return</b><br>{min_return:.1%}<br>{min_date.strftime('%b %Y')}",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=2,
+                arrowcolor='red',
+                bgcolor='red',
+                bordercolor='red',
+                borderwidth=2,
+                borderpad=4,
+                font=dict(color='white', size=9),
+                yshift=60
+            )
         
         # Add logo next to title
         title_text = f'{window_months}-Month Rolling Returns: {target_fund}'

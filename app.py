@@ -38,7 +38,7 @@ target_fund = st.sidebar.selectbox(
 # Category filter
 category = st.sidebar.selectbox(
     'Category Filter',
-    options=['Large Growth','Large Blend','Large Growth and Large Blend','Large Value','All']
+    options=['Large Growth','Large Blend','Large Growth and Large Blend','Large Value','Large Blend and Large Value','All']
 )
 
 # Active Share Benchmark Selection
@@ -118,14 +118,31 @@ if uploaded_file is not None:
         else:
             df['SI'] = df['SI Dividend']
 
+        # Store target fund data to ensure it's always included
+        target_fund_data = df[df['Fund'] == target_fund].copy()
+        
+        # Store category selection for title generation
+        category_for_title = category
+        
         # Apply filters
         if category == 'All':
             # Keep all three categories without additional filtering
-            df = df[df['Morningstar Category'].isin(['Large Growth', 'Large Blend', 'Large Value'])]
+            df_filtered = df[df['Morningstar Category'].isin(['Large Growth', 'Large Blend', 'Large Value'])]
         elif category == 'Large Growth and Large Blend':
-            df = df[df['Morningstar Category'].isin(['Large Growth', 'Large Blend'])]
+            df_filtered = df[df['Morningstar Category'].isin(['Large Growth', 'Large Blend'])]
+        elif category == 'Large Blend and Large Value':
+            df_filtered = df[df['Morningstar Category'].isin(['Large Blend', 'Large Value'])]
         elif category in ['Large Growth', 'Large Blend', 'Large Value']:
-            df = df[df['Morningstar Category'] == category]
+            df_filtered = df[df['Morningstar Category'] == category]
+        
+        # Always include target fund even if it doesn't match category filter
+        if len(target_fund_data) > 0 and target_fund not in df_filtered['Fund'].values:
+            df_filtered = pd.concat([df_filtered, target_fund_data], ignore_index=True)
+        
+        # Add category_for_title to dataframe for plotting functions to use
+        df_filtered.attrs['category_for_title'] = category_for_title
+        
+        df = df_filtered
         
         if active_share_threshold > 0:
             df = df[df[active_share_benchmark] >= active_share_threshold]
@@ -142,7 +159,7 @@ if uploaded_file is not None:
             "Risk-Return Analysis", 
             "Market Cap Animation",
             "Risk-Adjusted Ratios",
-            "Time Series Analysis"
+            "Mountain Chart"
         ])
         
         # Performance Distribution Tab
@@ -155,8 +172,15 @@ if uploaded_file is not None:
             
         # Risk-Return Analysis Tab
         with tab2:
+            # Add regression line toggle
+            show_regression = st.checkbox(
+                "Show Regression Line",
+                value=False,
+                help="Display a linear regression line showing the relationship between risk and return"
+            )
+            
             st.plotly_chart(
-                create_risk_return_scatter(df, target_fund),
+                create_risk_return_scatter(df, target_fund, show_regression=show_regression),
                 use_container_width=True,
                 key="risk_return_scatter_chart"
             )
@@ -189,9 +213,21 @@ if uploaded_file is not None:
                 key="cumulative_returns_chart"
             )
             
-            st.subheader("Rolling 12-Month Returns")
+            # Rolling returns period selection
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                rolling_period_years = st.selectbox(
+                    'Rolling Period',
+                    options=[1, 2, 3],
+                    index=0,
+                    help="Select the rolling period duration"
+                )
             
-            rolling_chart = create_clean_rolling_returns_chart(uploaded_file, target_fund, window_months=12)
+            st.subheader(f"Rolling {rolling_period_years}-Year Returns")
+            
+            # Convert years to months
+            window_months = rolling_period_years * 12
+            rolling_chart = create_clean_rolling_returns_chart(uploaded_file, target_fund, window_months=window_months)
             
             st.plotly_chart(
                 rolling_chart,
