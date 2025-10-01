@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Fund Launch Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* --- Timeline Styles --- */
+        .timeline-bar {
+            position: absolute; height: 60%; top: 20%; border-radius: 0.375rem; cursor: move;
+            display: flex; align-items: center; justify-content: center; color: white;
+            font-size: 0.75rem; font-weight: 600; padding: 0 0.5rem; white-space: nowrap; overflow: hidden;
+            text-overflow: ellipsis; user-select: none; z-index: 10; min-width: 40px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        /* Rainbow animation for Frank's tasks */
+        .timeline-bar.rainbow {
+            animation: rainbow-shimmer 3s ease-in-out infinite;
+            background-size: 200% 100%;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        @keyframes rainbow-shimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .timeline-bar:hover .split-btn { opacity: 1; }
+        .handle {
+            position: absolute; width: 10px; height: 100%; top: 0;
+            cursor: ew-resize; background-color: rgba(255, 255, 255, 0.2);
+        }
+        .handle-left { left: 0; }
+        .handle-right { right: 0; }
+        .task-cell-timeline { border-right: 1px solid #e5e7eb; }
+        .week-cell {
+            position: relative; border-right: 1px solid #e5e7eb; border-top: 1px solid #e5e7eb;
+        }
+        .month-header { border-bottom: 1px solid #4b5563; }
+        .table-container { overflow-x: auto; }
+        .delete-btn, .split-btn { opacity: 0; transition: opacity 0.2s ease-in-out; }
+        tr:hover .delete-btn { opacity: 1; }
+        .split-btn {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(0,0,0,0.5); color: white; border: none; border-radius: 50%;
+            width: 20px; height: 20px; font-size: 12px; line-height: 20px; text-align: center; cursor: pointer;
+        }
+        /* --- Cost Calculator Styles --- */
+        .input-base {
+            width: 100%; border: 1px solid #d1d5db; border-radius: 0.375rem;
+            padding: 0.5rem 0.75rem; background-color: white;
+        }
+        .input-base:focus {
+            outline: none; border-color: #3B82F6; box-shadow: 0 0 0 1px #3B82F6;
+        }
+        .input-base:disabled {
+            background-color: #f3f4f6; /* gray-100 */
+            cursor: not-allowed;
+        }
+        .summary-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;
+        }
+        /* --- Modal & Dropdown Styles --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background-color: white; padding: 2rem; border-radius: 0.5rem;
+            max-width: 90%; width: 600px; max-height: 90vh; overflow-y: auto;
+        }
+        .responsible-dropdown {
+            position: fixed; 
+            background: white; border: 1px solid #ccc;
+            border-radius: 6px; padding: 8px; z-index: 100; display: none;
+        }
+        .task-name-input-timeline.completed {
+            text-decoration: line-through;
+            color: #9ca3af; /* gray-400 */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="app-container" class="container mx-auto p-4 md:p-8 space-y-8">
+        <!-- Collaboration Info -->
+        <div class="bg-white rounded-xl shadow-lg p-4">
+            <h2 class="text-lg font-semibold">Collaboration Mode</h2>
+            <p class="text-sm text-gray-600">Share this URL with your team. To collaborate on the same data, ensure everyone is using the same Project ID below.</p>
+            <div class="mt-2">
+                <label class="font-medium text-sm">Your Project ID:</label>
+                <input id="user-id-display" type="text" readonly class="input-base w-full mt-1 bg-gray-100" value="Loading...">
+            </div>
+        </div>
+
+        <!-- Interactive Timeline Section -->
+        <div class="bg-white rounded-xl shadow-lg">
+            <div class="p-6">
+                <header class="text-center mb-6">
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Fund Launch Timeline</h1>
+                    <p class="text-gray-500 mt-1">Plan your fund launch schedule and visualize cash flow.</p>
+                </header>
+                <div class="table-container">
+                    <table id="timeline-table" class="w-full border-collapse">
+                        <thead id="timeline-head"></thead>
+                        <tbody id="timeline-body"></tbody>
+                        <tfoot id="timeline-foot" class="bg-gray-200"></tfoot>
+                    </table>
+                </div>
+                 <div class="mt-4 flex gap-4">
+                    <button id="add-timeline-task-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        + Add Timeline Task
+                    </button>
+                    <button id="export-data-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        💾 Export Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fund Cost Calculator Section -->
+        <div class="bg-white rounded-xl shadow-lg">
+            <div class="p-6 border-b border-gray-200">
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Fund Cost Calculator</h1>
+                <p class="text-gray-500 mt-1">Manage pre-launch and post-launch fund expenses.</p>
+            </div>
+            <div class="p-6">
+                <h2 class="text-xl font-semibold mb-4">Cost Breakdown</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-3 text-left text-sm font-semibold text-gray-600 w-2/5">Expense Item</th>
+                                <th class="p-3 text-left text-sm font-semibold text-gray-600 w-1/5">Total Cost</th>
+                                <th class="p-3 text-left text-sm font-semibold text-gray-600 w-1/5">Billing Time</th>
+                                <th class="p-3 text-left text-sm font-semibold text-gray-600 w-1/5">Amortization (Yrs)</th>
+                                <th class="p-3 text-center text-sm font-semibold text-gray-600">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="costs-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="mt-4">
+                    <button id="add-expense-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        + Add Expense Item
+                    </button>
+                </div>
+            </div>
+            <div class="p-6 bg-gray-50 rounded-b-xl">
+                 <h2 class="text-xl font-semibold mb-4">Financial Summary</h2>
+                 <div class="summary-grid">
+                    <div>
+                        <label for="aum-input" class="block text-sm font-medium text-gray-700">Starting AUM</label>
+                        <div class="mt-1 relative rounded-md shadow-sm">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center"><span class="text-gray-500 sm:text-sm">$</span></div>
+                            <input type="text" id="aum-input" class="input-base pl-7" placeholder="10,000,000">
+                        </div>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg border">
+                        <p class="text-sm font-medium text-gray-500">Pre-Launch Costs</p>
+                        <p id="pre-launch-costs" class="mt-1 text-2xl font-semibold text-gray-900">$0</p>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg border">
+                        <p id="on-going-expenses-label" class="text-sm font-medium text-gray-500">Post-launch Annual Expenses</p>
+                        <p id="on-going-expenses" class="mt-1 text-2xl font-semibold text-gray-900">$0</p>
+                    </div>
+                    <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p class="text-sm font-medium text-blue-600">Annual Expense Ratio</p>
+                        <p id="expense-ratio" class="mt-1 text-2xl font-semibold text-blue-800">0.00%</p>
+                    </div>
+                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal -->
+    <div id="modal" class="modal-overlay hidden">
+        <div id="modal-content-host" class="modal-content"></div>
+    </div>
+
+
+    <script>
+        // ---  STATE & CONFIG ---
+        const WEEKS_IN_TIMELINE = 14;
+        const START_DATE = new Date('2025-08-04T00:00:00');
+        const RESPONSIBLE_PARTIES = ['Frank', 'Phil', 'Kurt', 'Mike', 'All'];
+        
+        // Color mapping for responsible parties
+        const RESPONSIBLE_COLORS = {
+            'Frank': 'rainbow',      // Special rainbow gradient!
+            'Phil': '#10B981',       // Green
+            'Kurt': '#3B82F6',       // Blue
+            'Mike': '#F59E0B',       // Yellow/Orange
+            'All': '#8B5CF6',        // Purple
+            'Frank,Phil': 'rainbow', // Rainbow for Frank combinations
+            'Frank,Kurt': 'rainbow', // Rainbow for Frank combinations
+            'Frank,Mike': 'rainbow', // Rainbow for Frank combinations
+            'Phil,Kurt': '#84CC16',  // Lime
+            'Phil,Mike': '#A3A3A3',  // Gray
+            'Kurt,Mike': '#6366F1',  // Indigo
+            'default': '#6B7280'     // Gray fallback
+        };
+        
+        let timelineTasks = [];
+        let costItems = [];
+        let aum = 10000000; // State variable for AUM
+        let userId = 'local-' + Math.random().toString(36).substring(2, 15);
+
+        // --- DOM ELEMENTS ---
+        const timelineHead = document.getElementById('timeline-head');
+        const timelineBody = document.getElementById('timeline-body');
+        const timelineFoot = document.getElementById('timeline-foot');
+        const addTimelineTaskBtn = document.getElementById('add-timeline-task-btn');
+        const exportDataBtn = document.getElementById('export-data-btn');
+        const costsTbody = document.getElementById('costs-tbody');
+        const addExpenseBtn = document.getElementById('add-expense-btn');
+        const aumInput = document.getElementById('aum-input');
+        const preLaunchCostsEl = document.getElementById('pre-launch-costs');
+        const onGoingExpensesEl = document.getElementById('on-going-expenses');
+        const expenseRatioEl = document.getElementById('expense-ratio');
+        const modal = document.getElementById('modal');
+        const modalContentHost = document.getElementById('modal-content-host');
+        const userIdDisplay = document.getElementById('user-id-display');
+
+        // --- TIMELINE-SPECIFIC VARS ---
+        let draggedElement = null;
+        let resizeHandle = null;
+        let initialX, initialWidth, initialStart, cellWidth;
+
+        // --- HELPER FUNCTIONS ---
+        function saveToLocalStorage() {
+            localStorage.setItem('timelineTasks', JSON.stringify(timelineTasks));
+            localStorage.setItem('costItems', JSON.stringify(costItems));
+            localStorage.setItem('aum', aum.toString());
+        }
+
+        function loadFromLocalStorage() {
+            const savedTasks = localStorage.getItem('timelineTasks');
+            const savedCosts = localStorage.getItem('costItems');
+            const savedAum = localStorage.getItem('aum');
+            
+            if (savedTasks) {
+                timelineTasks = JSON.parse(savedTasks);
+            }
+            if (savedCosts) {
+                costItems = JSON.parse(savedCosts);
+            }
+            if (savedAum) {
+                aum = parseFloat(savedAum);
+            }
+            // Note: AUM keeps its initialized value if no saved value exists
+        }
+
+        function getTaskColor(responsible) {
+            if (!responsible || responsible.length === 0) {
+                return RESPONSIBLE_COLORS['default'];
+            }
+            
+            // If Frank is involved and it's a single person assignment, use rainbow
+            if (responsible.length === 1 && responsible[0] === 'Frank') {
+                return RESPONSIBLE_COLORS['Frank'];
+            }
+            
+            // Sort responsible parties to ensure consistent color mapping
+            const sortedResponsible = [...responsible].sort().join(',');
+            
+            // Check if we have a specific color for this combination
+            if (RESPONSIBLE_COLORS[sortedResponsible]) {
+                return RESPONSIBLE_COLORS[sortedResponsible];
+            }
+            
+            // If Frank is part of a combination not specifically defined, still use rainbow
+            if (responsible.includes('Frank')) {
+                return 'rainbow';
+            }
+            
+            // If single person, use their color
+            if (responsible.length === 1 && RESPONSIBLE_COLORS[responsible[0]]) {
+                return RESPONSIBLE_COLORS[responsible[0]];
+            }
+            
+            // For larger groups or unknown combinations, use default
+            return RESPONSIBLE_COLORS['default'];
+        }
+
+        function exportDashboard() {
+            // Get current HTML content
+            const htmlContent = document.documentElement.outerHTML;
+            
+            // Convert current data to string format for embedding
+            const tasksString = JSON.stringify(timelineTasks, null, 20).replace(/\n/g, '\n                    ');
+            const costsString = JSON.stringify(costItems, null, 20).replace(/\n/g, '\n                    ');
+            
+            // Create updated HTML with current data
+            let updatedHtml = htmlContent;
+            
+            // Replace timeline tasks data (within the if statement)
+            const taskRegex = /if \(timelineTasks\.length === 0\) \{\s*timelineTasks = \[([\s\S]*?)\];\s*\}/;
+            updatedHtml = updatedHtml.replace(taskRegex, `if (timelineTasks.length === 0) {
+                timelineTasks = ${tasksString};
+            }`);
+            
+            // Replace cost items data (within the if statement)
+            const costRegex = /if \(costItems\.length === 0\) \{\s*costItems = \[([\s\S]*?)\];\s*\}/;
+            updatedHtml = updatedHtml.replace(costRegex, `if (costItems.length === 0) {
+                costItems = ${costsString};
+            }`);
+            
+            // Replace AUM value
+            const aumRegex = /let aum = \d+(\.\d+)?;/;
+            updatedHtml = updatedHtml.replace(aumRegex, `let aum = ${aum};`);
+            
+            // Also update the AUM loading in localStorage function to use current value as default
+            const aumLoadRegex = /if \(savedAum\) \{\s*aum = parseFloat\(savedAum\);\s*\}/;
+            updatedHtml = updatedHtml.replace(aumLoadRegex, `if (savedAum) {
+                aum = parseFloat(savedAum);
+            } else {
+                aum = ${aum}; // Use exported value as default
+            }`);
+            
+            // Create download
+            const blob = new Blob([updatedHtml], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fund-launch-dashboard-updated.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Dashboard exported! The downloaded file contains all your current edits and can be shared with your team.');
+        }
+
+        // --- RENDER ALL FUNCTION ---
+        function renderAll() {
+            renderCostTable();
+            sortAndRenderTimeline();
+            updateSummary();
+        }
+
+        // --- COST CALCULATOR FUNCTIONS ---
+        function formatCurrency(value) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value); }
+        function formatAum(value) { aumInput.value = value.toLocaleString('en-US'); }
+        function parseAum(value) { 
+            const num = Number(String(value).replace(/,/g, ''));
+            return isNaN(num) ? 0 : num;
+        }
+        function calculateTotalCost(item) { return item.payments.reduce((sum, p) => sum + p.amount, 0); }
+
+        function renderCostTable() {
+            costsTbody.innerHTML = '';
+            costItems.forEach(item => {
+                const row = document.createElement('tr');
+                row.classList.add('border-b', 'border-gray-200');
+                row.dataset.itemId = item.id;
+                const totalCost = calculateTotalCost(item);
+                const isAmortizationDisabled = item.billing === 'after';
+
+                row.innerHTML = `
+                    <td class="p-3"><input type="text" class="input-base item-name-input" value="${item.name}"></td>
+                    <td class="p-3 font-medium">${formatCurrency(totalCost)}</td>
+                    <td class="p-3">
+                        <select class="input-base item-billing-select">
+                            <option value="upfront" ${item.billing === 'upfront' ? 'selected' : ''}>Up Front</option>
+                            <option value="after" ${item.billing === 'after' ? 'selected' : ''}>Post-launch</option>
+                        </select>
+                    </td>
+                    <td class="p-3"><input type="number" class="input-base item-amortization-input" value="${item.amortizationYears}" min="0" ${isAmortizationDisabled ? 'disabled' : ''}></td>
+                    <td class="p-3 text-center space-x-2">
+                        <button class="text-blue-600 hover:text-blue-800 font-semibold manage-schedule-btn">Schedule</button>
+                        <button class="text-red-500 hover:text-red-700 font-bold delete-btn-cost">&times;</button>
+                    </td>
+                `;
+                costsTbody.appendChild(row);
+
+                row.querySelector('.item-name-input').addEventListener('change', (e) => updateCostItem(item.id, { name: e.target.value }));
+                row.querySelector('.item-billing-select').addEventListener('change', (e) => updateCostItem(item.id, { billing: e.target.value }));
+                row.querySelector('.item-amortization-input').addEventListener('change', (e) => updateCostItem(item.id, { amortizationYears: Number(e.target.value) }));
+                row.querySelector('.delete-btn-cost').addEventListener('click', () => deleteCostItem(item.id));
+                row.querySelector('.manage-schedule-btn').addEventListener('click', () => showPaymentScheduleModal(item.id));
+            });
+        }
+        
+        function updateCostItem(itemId, data) {
+            const item = costItems.find(i => i.id === itemId);
+            if (item) {
+                if (data.billing === 'after') {
+                    data.amortizationYears = 0;
+                }
+                Object.assign(item, data);
+                saveToLocalStorage();
+                renderAll();
+            }
+        }
+
+        function addCostItem() {
+            const newItem = { 
+                id: 'cost-' + Date.now(),
+                name: 'New Expense', 
+                billing: 'upfront', 
+                amortizationYears: 1, 
+                payments: [{amount: 0, week: 0}] 
+            };
+            costItems.push(newItem);
+            saveToLocalStorage();
+            renderAll();
+        }
+
+        function deleteCostItem(itemId) {
+            const index = costItems.findIndex(i => i.id === itemId);
+            if (index > -1) {
+                costItems.splice(index, 1);
+                saveToLocalStorage();
+                renderAll();
+            }
+        }
+
+        function updateSummary() {
+            const preLaunchCosts = costItems.filter(i => i.billing === 'upfront').reduce((sum, i) => sum + calculateTotalCost(i), 0);
+            const onGoingExpenses = costItems.reduce((sum, item) => {
+                const totalCost = calculateTotalCost(item);
+                if (item.billing === 'after') return sum + totalCost;
+                if (item.billing === 'upfront' && item.amortizationYears > 0) return sum + (totalCost / item.amortizationYears);
+                return sum;
+            }, 0);
+            preLaunchCostsEl.textContent = formatCurrency(preLaunchCosts);
+            onGoingExpensesEl.textContent = formatCurrency(onGoingExpenses);
+            const expenseRatio = aum > 0 ? (onGoingExpenses / aum) * 100 : 0;
+            expenseRatioEl.textContent = `${expenseRatio.toFixed(2)}%`;
+        }
+
+        // --- TIMELINE FUNCTIONS ---
+        function generateTimelineHeaders() {
+            let monthHeaders = '';
+            let weekHeaders = `
+                <th class="p-2 w-12 min-w-[3rem] text-left font-semibold sticky left-0 bg-gray-100 z-20">Done</th>
+                <th class="p-2 w-80 min-w-[20rem] text-left font-semibold sticky left-12 bg-gray-100 z-20">Task</th>
+                <th class="p-2 w-48 min-w-[12rem] text-left font-semibold sticky left-[23rem] bg-gray-100 z-20">Responsible</th>
+            `;
+            const months = {};
+            for (let i = 0; i < WEEKS_IN_TIMELINE; i++) {
+                const weekStartDate = new Date(START_DATE);
+                weekStartDate.setDate(weekStartDate.getDate() + i * 7);
+                const monthName = weekStartDate.toLocaleString('default', { month: 'long' });
+                const monthYear = `${monthName} ${weekStartDate.getFullYear()}`;
+                if (!months[monthYear]) months[monthYear] = 0;
+                months[monthYear]++;
+                weekHeaders += `<th class="p-2 w-20 min-w-[5rem] text-center font-medium text-sm border-l border-gray-200">Wk ${i + 1}<br><span class="font-normal text-xs">${weekStartDate.getDate()}</span></th>`;
+            }
+            for (const month in months) {
+                monthHeaders += `<th colspan="${months[month]}" class="p-2 text-center font-semibold month-header">${month}</th>`;
+            }
+            timelineHead.innerHTML = `
+                <tr class="bg-gray-800 text-white">
+                    <th class="p-2 sticky left-0 bg-gray-800 z-20"></th>
+                    <th class="p-2 sticky left-12 bg-gray-800 z-20"></th>
+                    <th class="p-2 sticky left-[23rem] bg-gray-800 z-20"></th>
+                    ${monthHeaders}
+                </tr>
+                <tr class="bg-gray-100">${weekHeaders}</tr>`;
+        }
+        
+        function sortAndRenderTimeline() {
+            timelineTasks.forEach(task => {
+                if (task.segments && task.segments.length > 0) {
+                    const lastSegment = task.segments.reduce((last, current) => (last.start + last.duration) > (current.start + current.duration) ? last : current);
+                    task.endWeek = lastSegment.start + lastSegment.duration;
+                } else {
+                    task.endWeek = -1;
+                }
+                
+                // Update task color based on responsible parties
+                task.color = getTaskColor(task.responsible);
+            });
+            
+            // Sort with completed tasks first, then by end week
+            timelineTasks.sort((a, b) => {
+                // Completed tasks go to the top
+                if (a.completed && !b.completed) return -1;
+                if (!a.completed && b.completed) return 1;
+                
+                // Within completed or incomplete groups, sort by end week
+                return a.endWeek - b.endWeek;
+            });
+            
+            renderTimeline();
+        }
+
+        function renderTimeline() {
+            timelineBody.innerHTML = '';
+            timelineTasks.forEach(task => {
+                const row = document.createElement('tr');
+                row.classList.add('border-b', 'border-gray-200', 'h-12');
+                row.dataset.taskId = task.id;
+
+                const statusCell = document.createElement('td');
+                statusCell.classList.add('p-2', 'text-center', 'sticky', 'left-0', 'bg-white', 'z-10', 'task-cell-timeline');
+                statusCell.innerHTML = `<input type="checkbox" class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 task-completed-checkbox" ${task.completed ? 'checked' : ''}>`;
+                row.appendChild(statusCell);
+
+                const taskCell = document.createElement('td');
+                taskCell.classList.add('p-2', 'font-medium', 'text-sm', 'sticky', 'left-12', 'bg-white', 'z-10', 'task-cell-timeline');
+                taskCell.innerHTML = `<div class="flex items-center"><input type="text" class="input-base task-name-input-timeline ${task.completed ? 'completed' : ''}" value="${task.name}"><button class="delete-btn ml-2 text-red-500 hover:text-red-700 font-bold">&times;</button></div>`;
+                row.appendChild(taskCell);
+
+                const responsibleCell = document.createElement('td');
+                responsibleCell.classList.add('p-2', 'text-sm', 'sticky', 'left-[23rem]', 'bg-white', 'z-20', 'task-cell-timeline');
+                const assignedText = task.responsible && task.responsible.length > 0 ? task.responsible.join(', ') : 'Assign';
+                responsibleCell.innerHTML = `<div class="responsible-btn-container relative"><button class="w-full text-left p-1 rounded hover:bg-gray-100 responsible-btn">${assignedText}</button></div>`;
+                row.appendChild(responsibleCell);
+
+                for (let i = 0; i < WEEKS_IN_TIMELINE; i++) {
+                    const weekCell = document.createElement('td');
+                    weekCell.classList.add('week-cell');
+                    weekCell.dataset.weekIndex = i;
+                    row.appendChild(weekCell);
+                }
+                timelineBody.appendChild(row);
+                
+                row.querySelector('.task-completed-checkbox').addEventListener('change', (e) => updateTimelineTask(task.id, { completed: e.target.checked }));
+                row.querySelector('.task-name-input-timeline').addEventListener('change', (e) => updateTimelineTask(task.id, { name: e.target.value }));
+                row.querySelector('.delete-btn').addEventListener('click', () => deleteTimelineTask(task.id));
+                row.querySelector('.responsible-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showResponsibleDropdown(task.id, e.target);
+                });
+
+                renderBarsForTask(task.id);
+            });
+            renderCashOutlayRow();
+        }
+
+        function renderCashOutlayRow() {
+            let cashOutlayHtml = `<tr><td class="p-2 font-bold text-sm sticky left-0 bg-gray-200 z-10 task-cell-timeline" colspan="3">Weekly Cash Outlay</td>`;
+            for (let i = 0; i < WEEKS_IN_TIMELINE; i++) {
+                const weeklyTotal = costItems
+                    .filter(item => item.billing === 'upfront')
+                    .flatMap(item => item.payments)
+                    .filter(p => p.week === i)
+                    .reduce((sum, p) => sum + p.amount, 0);
+                
+                cashOutlayHtml += `<td class="p-2 text-center text-sm font-semibold border-t-2 border-gray-400 ${weeklyTotal > 0 ? 'text-red-600' : 'text-gray-500'}">${weeklyTotal > 0 ? formatCurrency(weeklyTotal) : '-'}</td>`;
+            }
+            cashOutlayHtml += '</tr>';
+            timelineFoot.innerHTML = cashOutlayHtml;
+        }
+
+        function renderBarsForTask(taskId) {
+            const task = timelineTasks.find(t => t.id === taskId);
+            if (!task || !task.segments) return;
+            const row = timelineBody.querySelector(`tr[data-task-id='${task.id}']`);
+            if (!row) return;
+            row.querySelectorAll('.timeline-bar').forEach(bar => bar.remove());
+            task.segments.forEach((segment, index) => {
+                const startCell = row.querySelector(`td[data-week-index='${segment.start}']`);
+                if (!startCell) return;
+                cellWidth = startCell.offsetWidth;
+                if (cellWidth === 0) { setTimeout(() => renderBarsForTask(taskId), 100); return; }
+                const bar = document.createElement('div');
+                bar.classList.add('timeline-bar');
+                bar.style.left = `0px`;
+                bar.style.width = `${cellWidth * segment.duration}px`;
+                if (task.completed) {
+                    bar.style.backgroundColor = '#6b7280';
+                    bar.style.background = '#6b7280';
+                    bar.classList.remove('rainbow');
+                } else if (task.color === 'rainbow') {
+                    bar.style.background = 'linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3, #ff0000)';
+                    bar.style.backgroundColor = 'transparent';
+                    bar.classList.add('rainbow');
+                } else {
+                    bar.style.backgroundColor = task.color;
+                    bar.style.background = task.color;
+                    bar.classList.remove('rainbow');
+                }
+                bar.dataset.taskId = task.id;
+                bar.dataset.segmentIndex = index;
+                bar.draggable = true;
+                const durationText = `${segment.duration} wk${segment.duration > 1 ? 's' : ''}`;
+                bar.innerHTML = `<div class="handle handle-left"></div><span>${durationText}</span><div class="handle handle-right"></div><button class="split-btn">&lrarr;</button>`;
+                startCell.appendChild(bar);
+                bar.addEventListener('dragstart', handleDragStart);
+                bar.querySelector('.handle-left').addEventListener('mousedown', handleResizeStart);
+                bar.querySelector('.handle-right').addEventListener('mousedown', handleResizeStart);
+                bar.querySelector('.split-btn').addEventListener('click', () => splitTask(task.id, index));
+            });
+        }
+        
+        function addTimelineTask() {
+            const newTask = { 
+                id: 'task-' + Date.now(),
+                name: 'New Timeline Task', 
+                segments: [{ start: 0, duration: 2 }], 
+                completed: false, 
+                responsible: [] 
+            };
+            timelineTasks.push(newTask);
+            saveToLocalStorage();
+            sortAndRenderTimeline();
+        }
+
+        function deleteTimelineTask(taskId) {
+            const index = timelineTasks.findIndex(t => t.id === taskId);
+            if (index > -1) {
+                timelineTasks.splice(index, 1);
+                saveToLocalStorage();
+                sortAndRenderTimeline();
+            }
+        }
+        
+        function splitTask(taskId, segmentIndex) {
+            const task = timelineTasks.find(t => t.id === taskId);
+            const segment = task.segments[segmentIndex];
+            if (segment.duration < 2) return;
+            const oldDuration = segment.duration;
+            const newDuration1 = Math.floor(oldDuration / 2);
+            const newDuration2 = Math.ceil(oldDuration / 2);
+            segment.duration = newDuration1;
+            const newSegment = { start: segment.start + newDuration1, duration: newDuration2 };
+            task.segments.splice(segmentIndex + 1, 0, newSegment);
+            updateTimelineTask(taskId, { segments: task.segments });
+        }
+
+        function updateTimelineTask(taskId, data) {
+            const task = timelineTasks.find(t => t.id === taskId);
+            if (task) {
+                Object.assign(task, data);
+                saveToLocalStorage();
+                sortAndRenderTimeline();
+            }
+        }
+
+        function showResponsibleDropdown(taskId, buttonElement) {
+            const existingDropdown = document.querySelector('.responsible-dropdown');
+            if (existingDropdown) existingDropdown.remove();
+            
+            const task = timelineTasks.find(t => t.id === taskId);
+            const dropdown = document.createElement('div');
+            dropdown.className = 'responsible-dropdown shadow-lg';
+            
+            dropdown.innerHTML = RESPONSIBLE_PARTIES.map(p => `
+                <label class="flex items-center p-1">
+                    <input type="checkbox" class="h-4 w-4 rounded border-gray-300" value="${p}" ${task.responsible.includes(p) ? 'checked' : ''}>
+                    <span class="ml-2">${p}</span>
+                </label>
+            `).join('');
+            
+            dropdown.addEventListener('click', e => e.stopPropagation());
+            document.body.appendChild(dropdown);
+            const rect = buttonElement.getBoundingClientRect();
+            
+            dropdown.style.left = `${rect.left}px`;
+            let topPosition = rect.bottom;
+            
+            dropdown.style.display = 'block';
+
+            if (topPosition + dropdown.offsetHeight > window.innerHeight) {
+                 topPosition = rect.top - dropdown.offsetHeight;
+            }
+            dropdown.style.top = `${topPosition}px`;
+
+            dropdown.querySelectorAll('input').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    const selected = Array.from(dropdown.querySelectorAll('input:checked')).map(cb => cb.value);
+                    updateTimelineTask(taskId, { responsible: selected });
+                });
+            });
+        }
+        
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        function showPaymentScheduleModal(itemId) {
+            const item = costItems.find(i => i.id === itemId);
+            if (!item) return;
+
+            let content = `<h2 class="text-xl font-semibold mb-4">Payment Schedule for: ${item.name}</h2>`;
+            content += `<div id="payment-list" class="space-y-2 mb-4">`;
+            item.payments.forEach((p, index) => {
+                content += `
+                    <div class="flex items-center gap-2 p-2 bg-gray-100 rounded" data-payment-index="${index}">
+                        <input type="number" class="input-base w-1/2 payment-amount" value="${p.amount}" placeholder="Amount">
+                        <label class="flex-shrink-0">in Week</label>
+                        <input type="number" class="input-base w-20 payment-week" value="${p.week}" min="0" max="${WEEKS_IN_TIMELINE - 1}">
+                        <button class="text-red-500 hover:text-red-700 font-bold delete-payment-btn">&times;</button>
+                    </div>`;
+            });
+            content += `</div>`;
+            content += `
+                <div class="mt-6 flex justify-between">
+                    <button id="add-payment-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">+ Add Payment</button>
+                    <button id="save-schedule-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg">Done</button>
+                </div>`;
+            
+            modalContentHost.innerHTML = content;
+
+            modalContentHost.querySelector('#add-payment-btn').addEventListener('click', () => {
+                item.payments.push({amount: 0, week: 0});
+                showPaymentScheduleModal(itemId);
+            });
+
+            modalContentHost.querySelector('#save-schedule-btn').addEventListener('click', () => {
+                const paymentRows = modalContentHost.querySelectorAll('#payment-list > div');
+                const newPayments = [];
+                paymentRows.forEach(row => {
+                    const amount = Number(row.querySelector('.payment-amount').value);
+                    const week = Number(row.querySelector('.payment-week').value);
+                    newPayments.push({ amount, week });
+                });
+                updateCostItem(item.id, { payments: newPayments });
+                closeModal();
+            });
+
+            modalContentHost.querySelectorAll('.delete-payment-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = Number(e.target.closest('[data-payment-index]').dataset.paymentIndex);
+                    item.payments.splice(index, 1);
+                    showPaymentScheduleModal(itemId);
+                });
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        // --- Drag/Drop/Resize Functions ---
+        function handleDragStart(e) { /* ... */ }
+        function handleResizeStart(e) { /* ... */ }
+        function handleMouseMove(e) { /* ... */ }
+        async function handleMouseUp() { /* ... */ }
+        
+        function initialize() {
+            userIdDisplay.value = userId;
+            
+            // Load data from localStorage
+            loadFromLocalStorage();
+            
+            // If no data exists, initialize with default data
+            if (timelineTasks.length === 0) {
+                timelineTasks = [
+                    { id: 'task-1', name: 'Auditor selection', segments: [{ start: 0, duration: 2 }], completed: false, responsible: ['Kurt', 'Mike'] },
+                    { id: 'task-2', name: 'Legal selection', segments: [{ start: 0, duration: 2 }], completed: false, responsible: ['Phil', 'Mike'] },
+                    { id: 'task-3', name: 'Administrator Selection', segments: [{ start: 0, duration: 1 }], completed: true, responsible: ['Kurt', 'Mike'] },
+                    { id: 'task-4', name: 'Marketing deck', segments: [{ start: 1, duration: 3 }], completed: false, responsible: ['Kurt', 'Mike'] },
+                    { id: 'task-5', name: 'Term sheet', segments: [{ start: 4, duration: 1 }], completed: false, responsible: ['All'] },
+                    { id: 'task-6', name: 'Nail down terms, economics, mechanics', segments: [{ start: 0, duration: 3 }], completed: false, responsible: ['All'] },
+                    { id: 'task-7', name: 'Socialize fund/terms', segments: [{ start: 3, duration: 5 }], completed: false, responsible: ['All'] },
+                    { id: 'task-8', name: 'Open IBKR fund master account', segments: [{ start: 7, duration: 2 }], completed: false, responsible: ['Frank'] },
+                    { id: 'task-9', name: 'Pre-fund legal docs', segments: [{ start: 2, duration: 4 }], completed: false, responsible: ['All'] },
+                    { id: 'task-10', name: 'Partners: quantify individual subscriptions', segments: [{ start: 9, duration: 1 }], completed: false, responsible: ['Frank'] }
+                ];
+            }
+            
+            if (costItems.length === 0) {
+                costItems = [
+                    { id: 'cost-1', name: 'Auditor selection', billing: 'after', amortizationYears: 0, payments: [{amount: 10000, week: 0}] },
+                    { id: 'cost-2', name: 'Marketing deck', billing: 'upfront', amortizationYears: 0, payments: [{amount: 7500, week: 4}] },
+                    { id: 'cost-3', name: 'Term sheet', billing: 'upfront', amortizationYears: 0, payments: [{amount: 2500, week: 5}] },
+                    { id: 'cost-4', name: 'Socialize fund/terms', billing: 'upfront', amortizationYears: 0, payments: [{amount: 1000, week: 7}] },
+                    { id: 'cost-5', name: 'Pre-fund legal docs', billing: 'upfront', amortizationYears: 5, payments: [{amount: 12500, week: 2}, {amount: 17500, week: 8}] },
+                    { id: 'cost-6', name: 'Admin Fees', billing: 'after', amortizationYears: 0, payments: [{amount: 10000, week: 0}] },
+                ];
+            }
+            
+            // Save initial data if it was just created
+            saveToLocalStorage();
+
+            generateTimelineHeaders();
+            addTimelineTaskBtn.addEventListener('click', addTimelineTask);
+            exportDataBtn.addEventListener('click', exportDashboard);
+            addExpenseBtn.addEventListener('click', addCostItem);
+            aumInput.addEventListener('change', () => {
+                aum = parseAum(aumInput.value);
+                saveToLocalStorage();
+                updateSummary();
+            });
+            aumInput.addEventListener('focus', () => {
+                aumInput.value = aum;
+            });
+            aumInput.addEventListener('blur', () => {
+                formatAum(aum);
+            });
+            formatAum(aum);
+            
+            // Initial render
+            renderAll();
+            
+            window.addEventListener('resize', () => {
+                timelineTasks.forEach(task => renderBarsForTask(task.id));
+                renderCashOutlayRow();
+            });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+            document.addEventListener('click', (e) => {
+                const dropdown = document.querySelector('.responsible-dropdown');
+                if (dropdown && !dropdown.contains(e.target) && !e.target.closest('.responsible-btn-container')) {
+                    dropdown.remove();
+                }
+            });
+        }
+        
+        // Full drag/drop/resize functions
+        handleDragStart = function(e) {
+            draggedElement = e.target;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', null);
+            setTimeout(() => { draggedElement.style.opacity = '0.5'; }, 0);
+        }
+        document.getElementById('timeline-table').addEventListener('dragover', (e) => e.preventDefault());
+        document.getElementById('timeline-table').addEventListener('drop', async (e) => {
+            e.preventDefault();
+            if (!draggedElement) return;
+            draggedElement.style.opacity = '1';
+            const targetCell = e.target.closest('td[data-week-index]');
+            if (!targetCell) { draggedElement = null; return; }
+            const taskId = draggedElement.dataset.taskId;
+            const segmentIndex = Number(draggedElement.dataset.segmentIndex);
+            const task = timelineTasks.find(t => t.id == taskId);
+            const segment = task.segments[segmentIndex];
+            const newStart = parseInt(targetCell.dataset.weekIndex);
+            if (segment && newStart + segment.duration <= WEEKS_IN_TIMELINE) {
+                segment.start = newStart;
+                updateTimelineTask(taskId, { segments: task.segments });
+            }
+            draggedElement = null;
+        });
+        handleResizeStart = function(e) {
+            e.preventDefault();
+            resizeHandle = e.target;
+            draggedElement = resizeHandle.closest('.timeline-bar');
+            const taskId = draggedElement.dataset.taskId;
+            const segmentIndex = Number(draggedElement.dataset.segmentIndex);
+            const task = timelineTasks.find(t => t.id == taskId);
+            const segment = task.segments[segmentIndex];
+            initialX = e.clientX;
+            initialWidth = draggedElement.offsetWidth;
+            initialStart = segment.start;
+            cellWidth = draggedElement.parentElement.offsetWidth;
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+        handleMouseMove = function(e) {
+            if (!resizeHandle) return;
+            const dx = e.clientX - initialX;
+            const dCells = Math.round(dx / cellWidth);
+            const taskId = draggedElement.dataset.taskId;
+            const segmentIndex = Number(draggedElement.dataset.segmentIndex);
+            const task = timelineTasks.find(t => t.id == taskId);
+            const segment = task.segments[segmentIndex];
+            if (resizeHandle.classList.contains('handle-right')) {
+                const newDuration = Math.max(1, Math.round(initialWidth / cellWidth) + dCells);
+                if (segment.start + newDuration <= WEEKS_IN_TIMELINE) {
+                    segment.duration = newDuration;
+                    renderBarsForTask(task.id);
+                }
+            } else {
+                const newStart = Math.max(0, initialStart + dCells);
+                const newDuration = (initialStart - newStart) + Math.round(initialWidth / cellWidth);
+                if (newStart >= 0 && newDuration >= 1) {
+                    segment.start = newStart;
+                    segment.duration = newDuration;
+                    renderBarsForTask(task.id);
+                }
+            }
+        }
+        handleMouseUp = function() {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            if (draggedElement) {
+                const taskId = draggedElement.dataset.taskId;
+                const task = timelineTasks.find(t => t.id === taskId);
+                updateTimelineTask(taskId, { segments: task.segments });
+            }
+            resizeHandle = null; 
+            draggedElement = null;
+        }
+
+
+        initialize();
+    </script>
+</body>
+</html>
+
