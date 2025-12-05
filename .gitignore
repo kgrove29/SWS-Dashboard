@@ -49,4 +49,8 @@ venv.bak/
 
 # OS files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Test and utility files
+test_with_excel.py
+GIT_PUSH_INSTRUCTIONS.md 

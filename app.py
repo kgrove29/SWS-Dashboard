@@ -70,19 +70,22 @@ if uploaded_file is not None:
         # Load the main data (first sheet by default)
         df = pd.read_excel(uploaded_file)
 
-        # Convert numeric columns - dynamically detect market cap columns
+        # Convert numeric columns - dynamically detect market cap and AUM columns
         base_numeric_columns = ['1YR', '3YR', '5YR', '7YR', 'SI Growth', 'SI Dividend', 'Fund AUM', 'Sharpe', 'Sortino', 'Treynor', 'Upside Capture']
         
         # Find all market cap columns dynamically
         market_cap_columns = [col for col in df.columns if 'Market Cap ($B)' in str(col)]
         
-        # Combine base columns with dynamically found market cap columns
-        numeric_columns = base_numeric_columns + market_cap_columns
+        # Find all year-specific AUM columns dynamically (e.g., "Fund AUM 2020", "Fund AUM 2021")
+        aum_columns = [col for col in df.columns if 'Fund AUM' in str(col)]
+        
+        # Combine base columns with dynamically found columns
+        numeric_columns = base_numeric_columns + market_cap_columns + aum_columns
         for col in numeric_columns:
             if col not in df.columns:
                 continue
                 
-            if col == 'Fund AUM':
+            if col == 'Fund AUM' or (isinstance(col, str) and 'Fund AUM' in col):
                 # Remove $ and commas, and any trailing spaces
                 df[col] = df[col].astype(str).str.strip().str.replace('$', '').str.replace(',', '')
                 df[col] = pd.to_numeric(df[col], errors='coerce')

@@ -574,7 +574,7 @@ def create_market_cap_animation(df, target_fund):
     """Create animated market cap distribution chart using Plotly."""
     try:
         # First ensure we have the required columns
-        required_cols = ['Fund', 'Fund AUM', 'Morningstar Category']
+        required_cols = ['Fund', 'Morningstar Category']
         if not all(col in df.columns for col in required_cols):
             raise ValueError(f"Missing required columns: {required_cols}")
             
@@ -591,9 +591,38 @@ def create_market_cap_animation(df, target_fund):
         if not market_cap_cols:
             raise ValueError("No valid market cap columns found")
             
+        # Find AUM columns by year (similar to market cap detection)
+        aum_cols = {}
+        for col in df.columns:
+            if isinstance(col, str) and 'Fund AUM' in col:
+                # Try to extract year from column name
+                # Pattern could be "Fund AUM 2025" or "Fund AUM YYYY"
+                parts = col.split()
+                if len(parts) >= 3:
+                    try:
+                        year = int(parts[-1])
+                        aum_cols[year] = col
+                    except (ValueError, IndexError):
+                        # If no year found, might be generic "Fund AUM" - skip for now
+                        continue
+                elif col == 'Fund AUM':
+                    # Fallback: if there's a generic "Fund AUM" column, we'll use it as fallback
+                    # But prefer year-specific columns
+                    pass
+        
         # Sort by year
         market_cap_cols.sort(key=lambda x: x[1])
         years = [year for _, year in market_cap_cols]
+        
+        # Verify we have AUM columns for all market cap years
+        missing_aum_years = [year for _, year in market_cap_cols if year not in aum_cols]
+        if missing_aum_years:
+            # Try fallback to generic "Fund AUM" if it exists
+            if 'Fund AUM' in df.columns:
+                for year in missing_aum_years:
+                    aum_cols[year] = 'Fund AUM'
+            else:
+                raise ValueError(f"Missing AUM columns for years: {missing_aum_years}")
         
         # Create figure
         fig = go.Figure()
@@ -605,9 +634,12 @@ def create_market_cap_animation(df, target_fund):
         
         # Process each year
         for col, year in market_cap_cols:
+            # Get the year-specific AUM column
+            aum_col = aum_cols[year]
+            
             # Ensure numeric data
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce')
-            df['Fund AUM'] = pd.to_numeric(df['Fund AUM'].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+            df[aum_col] = pd.to_numeric(df[aum_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
             
             # Create buckets
             df['temp_bucket'] = pd.cut(
@@ -617,11 +649,14 @@ def create_market_cap_animation(df, target_fund):
                 include_lowest=True
             )
             
-            # Group data
+            # Group data using year-specific AUM column
             grouped = df.groupby('temp_bucket', observed=True).agg({
-                'Fund AUM': 'sum',
+                aum_col: 'sum',
                 'Fund': 'count'
             }).reset_index()
+            
+            # Rename the aggregated column for easier access
+            grouped = grouped.rename(columns={aum_col: 'Fund AUM'})
             
             # Create frame data with annotations for each year
             frame_data = [go.Bar(
@@ -688,7 +723,13 @@ def create_market_cap_animation(df, target_fund):
             
             # Add initial annotation if target fund exists
             if target_fund in df['Fund'].values:
-                first_col = market_cap_cols[0][0]
+                first_col, first_year = market_cap_cols[0]
+                first_aum_col = aum_cols[first_year]
+                
+                # Ensure numeric data for first year
+                df[first_col] = pd.to_numeric(df[first_col].astype(str).str.replace(',', ''), errors='coerce')
+                df[first_aum_col] = pd.to_numeric(df[first_aum_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+                
                 target_data = df[df['Fund'] == target_fund]
                 target_bucket = pd.cut(
                     [target_data[first_col].iloc[0]], 
@@ -696,11 +737,22 @@ def create_market_cap_animation(df, target_fund):
                     labels=market_cap_labels
                 )[0]
                 
-                # Calculate initial marker height
+                # Create buckets for first year
+                df['temp_bucket'] = pd.cut(
+                    df[first_col],
+                    bins=market_cap_bins,
+                    labels=market_cap_labels,
+                    include_lowest=True
+                )
+                
+                # Calculate initial marker height using year-specific AUM
                 first_grouped = df.groupby('temp_bucket', observed=True).agg({
-                    'Fund AUM': 'sum',
+                    first_aum_col: 'sum',
                     'Fund': 'count'
                 }).reset_index()
+                
+                # Rename for consistency
+                first_grouped = first_grouped.rename(columns={first_aum_col: 'Fund AUM'})
                 
                 bucket_data = first_grouped[first_grouped['temp_bucket'] == target_bucket]
                 if not bucket_data.empty:
