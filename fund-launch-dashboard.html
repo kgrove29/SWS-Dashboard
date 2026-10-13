@@ -189,7 +189,12 @@
     </div>
 
 
+    <script id="dashboard-data" type="application/json">null</script>
     <script>
+        // Capture the authored shell before rendering any stored or editable data.
+        // Every export starts here, never from the mutable live page.
+        const exportTemplate = document.documentElement.cloneNode(true);
+        const embeddedData = JSON.parse(document.getElementById('dashboard-data').textContent);
         // ---  STATE & CONFIG ---
         const WEEKS_IN_TIMELINE = 14;
         const START_DATE = new Date('2025-08-04T00:00:00');
@@ -294,40 +299,14 @@
         }
 
         function exportDashboard() {
-            // Get current HTML content
-            const htmlContent = document.documentElement.outerHTML;
-            
-            // Convert current data to string format for embedding
-            const tasksString = JSON.stringify(timelineTasks, null, 20).replace(/\n/g, '\n                    ');
-            const costsString = JSON.stringify(costItems, null, 20).replace(/\n/g, '\n                    ');
-            
-            // Create updated HTML with current data
-            let updatedHtml = htmlContent;
-            
-            // Replace timeline tasks data (within the if statement)
-            const taskRegex = /if \(timelineTasks\.length === 0\) \{\s*timelineTasks = \[([\s\S]*?)\];\s*\}/;
-            updatedHtml = updatedHtml.replace(taskRegex, `if (timelineTasks.length === 0) {
-                timelineTasks = ${tasksString};
-            }`);
-            
-            // Replace cost items data (within the if statement)
-            const costRegex = /if \(costItems\.length === 0\) \{\s*costItems = \[([\s\S]*?)\];\s*\}/;
-            updatedHtml = updatedHtml.replace(costRegex, `if (costItems.length === 0) {
-                costItems = ${costsString};
-            }`);
-            
-            // Replace AUM value
-            const aumRegex = /let aum = \d+(\.\d+)?;/;
-            updatedHtml = updatedHtml.replace(aumRegex, `let aum = ${aum};`);
-            
-            // Also update the AUM loading in localStorage function to use current value as default
-            const aumLoadRegex = /if \(savedAum\) \{\s*aum = parseFloat\(savedAum\);\s*\}/;
-            updatedHtml = updatedHtml.replace(aumLoadRegex, `if (savedAum) {
-                aum = parseFloat(savedAum);
-            } else {
-                aum = ${aum}; // Use exported value as default
-            }`);
-            
+            const exportedPage = exportTemplate.cloneNode(true);
+            // A script data block is raw text in HTML: escape '<' so labels cannot
+            // terminate it, including mixed-case closing tags and HTML comments.
+            exportedPage.querySelector('#dashboard-data').textContent = JSON.stringify({
+                timelineTasks, costItems, aum
+            }).replace(/</g, '\\u003c');
+            const updatedHtml = '<!DOCTYPE html>\n' + exportedPage.outerHTML;
+
             // Create download
             const blob = new Blob([updatedHtml], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
@@ -368,7 +347,7 @@
                 const isAmortizationDisabled = item.billing === 'after';
 
                 row.innerHTML = `
-                    <td class="p-3"><input type="text" class="input-base item-name-input" value="${item.name}"></td>
+                    <td class="p-3"><input type="text" class="input-base item-name-input" ></td>
                     <td class="p-3 font-medium">${formatCurrency(totalCost)}</td>
                     <td class="p-3">
                         <select class="input-base item-billing-select">
@@ -382,6 +361,7 @@
                         <button class="text-red-500 hover:text-red-700 font-bold delete-btn-cost">&times;</button>
                     </td>
                 `;
+                row.querySelector('.item-name-input').value = item.name;
                 costsTbody.appendChild(row);
 
                 row.querySelector('.item-name-input').addEventListener('change', (e) => updateCostItem(item.id, { name: e.target.value }));
@@ -511,13 +491,15 @@
 
                 const taskCell = document.createElement('td');
                 taskCell.classList.add('p-2', 'font-medium', 'text-sm', 'sticky', 'left-12', 'bg-white', 'z-10', 'task-cell-timeline');
-                taskCell.innerHTML = `<div class="flex items-center"><input type="text" class="input-base task-name-input-timeline ${task.completed ? 'completed' : ''}" value="${task.name}"><button class="delete-btn ml-2 text-red-500 hover:text-red-700 font-bold">&times;</button></div>`;
+                taskCell.innerHTML = `<div class="flex items-center"><input type="text" class="input-base task-name-input-timeline ${task.completed ? 'completed' : ''}" ><button class="delete-btn ml-2 text-red-500 hover:text-red-700 font-bold">&times;</button></div>`;
+                taskCell.querySelector('.task-name-input-timeline').value = task.name;
                 row.appendChild(taskCell);
 
                 const responsibleCell = document.createElement('td');
                 responsibleCell.classList.add('p-2', 'text-sm', 'sticky', 'left-[23rem]', 'bg-white', 'z-20', 'task-cell-timeline');
                 const assignedText = task.responsible && task.responsible.length > 0 ? task.responsible.join(', ') : 'Assign';
-                responsibleCell.innerHTML = `<div class="responsible-btn-container relative"><button class="w-full text-left p-1 rounded hover:bg-gray-100 responsible-btn">${assignedText}</button></div>`;
+                responsibleCell.innerHTML = `<div class="responsible-btn-container relative"><button class="w-full text-left p-1 rounded hover:bg-gray-100 responsible-btn"></button></div>`;
+                responsibleCell.querySelector('.responsible-btn').textContent = assignedText;
                 row.appendChild(responsibleCell);
 
                 for (let i = 0; i < WEEKS_IN_TIMELINE; i++) {
@@ -686,7 +668,7 @@
             const item = costItems.find(i => i.id === itemId);
             if (!item) return;
 
-            let content = `<h2 class="text-xl font-semibold mb-4">Payment Schedule for: ${item.name}</h2>`;
+            let content = `<h2 class="text-xl font-semibold mb-4"></h2>`;
             content += `<div id="payment-list" class="space-y-2 mb-4">`;
             item.payments.forEach((p, index) => {
                 content += `
@@ -705,6 +687,7 @@
                 </div>`;
             
             modalContentHost.innerHTML = content;
+            modalContentHost.querySelector('h2').textContent = `Payment Schedule for: ${item.name}`;
 
             modalContentHost.querySelector('#add-payment-btn').addEventListener('click', () => {
                 item.payments.push({amount: 0, week: 0});
@@ -744,10 +727,15 @@
             userIdDisplay.value = userId;
             
             // Load data from localStorage
+            if (embeddedData) {
+                timelineTasks = embeddedData.timelineTasks;
+                costItems = embeddedData.costItems;
+                aum = embeddedData.aum;
+            }
             loadFromLocalStorage();
             
             // If no data exists, initialize with default data
-            if (timelineTasks.length === 0) {
+            if (!embeddedData && timelineTasks.length === 0) {
                 timelineTasks = [
                     { id: 'task-1', name: 'Auditor selection', segments: [{ start: 0, duration: 2 }], completed: false, responsible: ['Kurt', 'Mike'] },
                     { id: 'task-2', name: 'Legal selection', segments: [{ start: 0, duration: 2 }], completed: false, responsible: ['Phil', 'Mike'] },
@@ -762,7 +750,7 @@
                 ];
             }
             
-            if (costItems.length === 0) {
+            if (!embeddedData && costItems.length === 0) {
                 costItems = [
                     { id: 'cost-1', name: 'Auditor selection', billing: 'after', amortizationYears: 0, payments: [{amount: 10000, week: 0}] },
                     { id: 'cost-2', name: 'Marketing deck', billing: 'upfront', amortizationYears: 0, payments: [{amount: 7500, week: 4}] },
